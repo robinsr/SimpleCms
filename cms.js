@@ -11,9 +11,11 @@
 
 var article = [];
 function initarticle(){
-    console.log('init running!')
+    console.log('initarticle running!')
     loadFileList();
     loadCssList();
+    loadHeadersList();
+    loadFootersList();
     register();
     loadcontrols();
 }
@@ -64,9 +66,9 @@ function loadFileList(){
     }
 }
     // GIVE ME A CALLBACK, IM ASYNCRONOUS!!!!
-function getCssList(cb){
+function getList(t,cb){
     var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("GET", "/csslist", true);
+    xmlhttp.open("GET", t, true);
     xmlhttp.send();
     xmlhttp.onreadystatechange = function(){
         if ((xmlhttp.readyState == 4) && (xmlhttp.status == 200)){
@@ -74,12 +76,12 @@ function getCssList(cb){
             cb(list);
         }
         else if ((xmlhttp.readyState == 4) && (xmlhttp.status != 200)){
-            console.log("Error in Connection. Did not get CSS list");
+            console.log("Error in Connection. Did not get "+t);
         }
     }  
 }
 function loadCssList(){
-    getCssList(function(list){
+    getList("/csslist",function(list){
     var target = document.getElementById("csslist");
     target.innerHTML = "";
     for (i=0;i<list.length;i++){
@@ -117,6 +119,84 @@ function loadCssList(){
     }
     });
 }
+function loadHeadersList(){
+    getList("/headers",function(list){
+       var target = document.getElementById("headerlist"); 
+       target.innerHTML = "";
+        for (i=0;i<list.length;i++){
+        var tr = document.createElement("tr");
+        var td1 = document.createElement("td");
+        var td2 = document.createElement("td");
+                
+        var inp = document.createElement("input");
+        inp.setAttribute("type","checkbox");
+        inp.setAttribute("class", "headercheckbox");
+                
+        var p = document.createElement("span");
+        var text = document.createTextNode(list[i]);
+        p.appendChild(text);
+                
+        var lab = document.createElement("label");
+        lab.appendChild(inp);
+        lab.appendChild(p);
+                
+                
+        var del = document.createElement("button");
+        del.setAttribute("type", "button");
+        del.setAttribute("class","deleteheader");
+        var deltext = document.createTextNode("Delete");
+        del.appendChild(deltext);
+                
+                
+        td1.appendChild(lab);
+        td2.appendChild(del);
+        tr.appendChild(td1);
+        tr.appendChild(td2);
+        target.appendChild(tr);
+
+        //registerHeadersDelete();
+    }
+    });
+}
+function loadFootersList(){
+    getList("/headers",function(list){
+       var target = document.getElementById("footerlist"); 
+       target.innerHTML = "";
+        for (i=0;i<list.length;i++){
+        var tr = document.createElement("tr");
+        var td1 = document.createElement("td");
+        var td2 = document.createElement("td");
+                
+        var inp = document.createElement("input");
+        inp.setAttribute("type","checkbox");
+        inp.setAttribute("class", "footercheckbox");
+                
+        var p = document.createElement("span");
+        var text = document.createTextNode(list[i]);
+        p.appendChild(text);
+                
+        var lab = document.createElement("label");
+        lab.appendChild(inp);
+        lab.appendChild(p);
+                
+                
+        var del = document.createElement("button");
+        del.setAttribute("type", "button");
+        del.setAttribute("class","deletefooter");
+        var deltext = document.createTextNode("Delete");
+        del.appendChild(deltext);
+                
+                
+        td1.appendChild(lab);
+        td2.appendChild(del);
+        tr.appendChild(td1);
+        tr.appendChild(td2);
+        target.appendChild(tr);
+
+        //registerFootersDelete();
+    }
+    });
+}
 function registerGetFile(){
         // finds the list of documents that can be edited, triggers getFile 
     var filelist = document.getElementsByClassName('fileitem');
@@ -125,7 +205,7 @@ function registerGetFile(){
 		me.onclick = function(me){
                 // dont want to lose your current work!
             var fetchdoc = "./jsondocs/"+me.target.text;
-            if (article.loaded == true){
+            if (article.loaded === true){
                 if (confirm('loading a new file will clear your current work. Did you save?')){
                     getFile(fetchdoc);
                 }
@@ -134,7 +214,6 @@ function registerGetFile(){
             }
         }
     }
-    console.log('there are '+filelist.length+' files');
 }
 function getFile(doc){
         // fetches the json doc with ajax call, loads the page with textarea elements.
@@ -144,37 +223,106 @@ function getFile(doc){
     xmlhttp.send();
     xmlhttp.onreadystatechange = function(){
         if ((xmlhttp.readyState == 4) && (xmlhttp.status == 200)){
-            var article = JSON.parse(xmlhttp.responseText);
+            var a = JSON.parse(xmlhttp.responseText);
                 // clear the article area
             var target = document.getElementById("articledraft");
             target.innerHTML = "";
       
                 // load the title
             var titletarget = document.getElementById("titlefield");
-            titletarget.value = article.title;
+            titletarget.value = a.title;
             titletarget.disabled = true;
                         
                 // load the url
             var urltarget = document.getElementById("urlfield");
-            urltarget.value = article.url;                        
+            urltarget.value = a.url;                        
                         
                 // load each content section
                 //console.log(article.content.length);
-            for (i=0;i<article.content.length;i++){
-                var e = article.content[i].type;
-                var f = article.content[i].text;
+            for (i=0;i<a.content.length;i++){
+                var e = a.content[i].type;
+                var f = a.content[i].text;
                 createP(e,f);
                 //console.log(e+" "+f);
             }
-                        
+               
                 // display latest save date
-            var d = new Date(article.savedate);
+            var d = new Date(a.savedate);
             d.toString();
             var datetext = document.createTextNode("last saved: "+d);
             var savetarget = document.getElementById('savedate');
             savetarget.innerHTML = "";
             savetarget.appendChild(datetext);
-                        
+            
+                // checks the css checkboxes that apply to this article
+            var csschecks = document.getElementsByClassName("csscheckbox");
+            for (i=0;i<csschecks.length;i++){
+                csschecks[i].checked = false;
+            }
+            var csslookup = {};
+            for (var j in a.css) {
+                csslookup[a.css[j].file] = a.css[j].file;
+            }
+            for (var i in csschecks) {
+                    // I dont understand why this is necessary, 'i' incriments then becomes not-a-number which errors the innerHTML method. Suggestions?
+                if (isNaN(i)){
+                }else{   
+                if (typeof csslookup[csschecks[i].nextSibling.innerHTML] != 'undefined') {
+                    //console.log('found ' + csschecks[i].nextSibling.innerHTML + ' in both lists');
+                    csschecks[i].checked = true;
+                }
+                } 
+            }
+            
+                // checks the header checkboxes that apply to this article
+            var hchecks = document.getElementsByClassName("headercheckbox");
+            for (i=0;i<hchecks.length;i++){
+                hchecks[i].checked = false;
+            }
+            var hlookup = {};
+            for (var q in a.header) {
+                hlookup[a.header[q].file] = a.header[q].file;
+            }
+            for (var p in hchecks) {
+                    // same problem as above
+                if (isNaN(p)){
+                }else{  
+                if (typeof hlookup[hchecks[p].nextSibling.innerHTML] != 'undefined') {
+                    //console.log('found ' + hchecks[i].nextSibling.innerHTML + ' in both lists');
+                    hchecks[p].checked = true;
+                }
+                } 
+            }
+            
+                // checks the header checkboxes that apply to this article
+            var fchecks = document.getElementsByClassName("footercheckbox");
+            for (i=0;i<fchecks.length;i++){
+                fchecks[i].checked = false;
+            }
+            var flookup = {};
+            for (var r in a.footer) {
+                flookup[a.footer[q].file] = a.footer[q].file;
+            }
+            for (var s in fchecks) {
+                    // same problem as above
+                if (isNaN(s)){
+                }else{  
+                if (typeof flookup[fchecks[s].nextSibling.innerHTML] != 'undefined') {
+                    //console.log('found ' + fchecks[i].nextSibling.innerHTML + ' in both lists');
+                    fchecks[s].checked = true;
+                }
+                } 
+            }
+            
+                // loads the header tags
+            var httarget = document.getElementById('tagsedit');
+            if (a.headertags){
+            httarget.value = "";
+            httarget.value = a.headertags;
+            } else {
+            httarget.value = "";
+            }
+            
             article.loaded = true;
             register();
         }else{
@@ -186,7 +334,7 @@ function registerChangeTitle(){
         // finds the title input and registers click event. changing the title and saving will create a new json doc
     var titletarget = document.getElementById("titlefield");
     titletarget.parentNode.onclick = function(){
-        if (article.loaded == true){
+        if (article.loaded === true){
             if (confirm('changing the title creates a new article. Proceed?')){
                 titletarget.disabled = false;
             }else{
@@ -385,7 +533,7 @@ function deletefile(m,t){
 	//preview button
 function preview(){
 	
-	var article = gather();
+	var article = gathertext();
 	var target = document.getElementById("preview");
 	target.innerHTML = "";
 	for (i=0;i<article.length;i++){
@@ -413,30 +561,35 @@ function gathertext(){
 		}
 	return d;
 }
-function gathercss(){
+function gatherthings(c){
+    var target;
+    if (c == 'css'){target = 'csscheckbox'}
+    else if (c == 'hf'){target = 'headercheckbox'}
+    else if (c == 'ff'){target = 'footercheckbox'}
     var d = [];
-    var css = document.getElementsByClassName('csscheckbox');
-    for (i=0;i<css.length;i++){
-        if (css[i].checked) {
-            var filename = css[i].nextSibling.innerHTML;
+    var items = document.getElementsByClassName(target);
+    for (i=0;i<items.length;i++){
+        if (items[i].checked) {
+            var filename = items[i].nextSibling.innerHTML;
             d.push({file:filename})
         } else {
         }
     }
-    console.log(d);
     return d;
-    
 }
 function save(){
-        // calls the gather() function, fully assembles the json doc by calling merge(), opens an ajax call, sends json to the server, 
+        // calls the gather() function, fully assembles the json, opens an ajax call, sends json to the server, 
         // displays success or fail
 	var d = new Date();
-	var article = {
+    var article = {
         url: document.getElementById("urlfield").value,
 		title: document.getElementById("titlefield").value,
 		savedate: d.getTime(),
         content: gathertext(),
-        css: gathercss()
+        css: gatherthings('css'),
+        header: gatherthings('hf'),
+        footer: gatherthings('ff'),
+        headertags: document.getElementById('tagsedit').value
 	}
 	var xmlhttp = new XMLHttpRequest();
 	xmlhttp.open("POST", "/savedata", true);
@@ -444,7 +597,7 @@ function save(){
 	xmlhttp.setRequestHeader("Content-Type", "application/json");
 	xmlhttp.send(newarticle);
 
-	console.log('sent ajax call');
+	//console.log('sent ajax call');
     
     xmlhttp.onreadystatechange = function() {        
         if ((xmlhttp.readyState == 4) && (xmlhttp.status == 200)){
@@ -470,9 +623,10 @@ function hide(){
 
 //CSS Editor Functions
 
-
+var css = {};
 var initcss = function(){
-    getCssList(function(list){
+        console.log('inithf running!')
+    getList("/csslist",function(list){
         var target = document.getElementById("csslist");
         target.innerHTML = "";
         for (i=0;i<list.length;i++){
@@ -513,36 +667,59 @@ function registerCssItem(){
         }
     }
 }
-/*function loadCssForEdit(fn){
-    console.log('starting loadCssForEdit');
+function savecss(){
     var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("POST", "/loadcssfile", true);
+    xmlhttp.open("POST", "/savecssfile", true);
+    var fn = {"css":document.getElementById("editspace").value, "url":document.getElementById('titlefield').value};
     var m = JSON.stringify(fn);
     xmlhttp.setRequestHeader("Content-Type", "application/json");
     xmlhttp.send(m);
     xmlhttp.onreadystatechange = function(){
         if ((xmlhttp.readyState == 4) && (xmlhttp.status == 200)){
-            var target = document.getElementById('editspace');
-            var data = JSON.parse(xmlhttp.responseText);
-            target.value = data.css;
+            alert(xmlhttp.responseText)
         }else if ((xmlhttp.readyState == 4) && (xmlhttp.status != 200)){
-            alert('Error getting that CSS file');
+            alert('Error saving that CSS file');
         }
-    }
-}*/
-function loadCssForEdit(fn){
-    var filename = "./resources/CSS/"+fn;
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("GET", filename, true);
-    xmlhttp.send();
-    xmlhttp.onreadystatechange = function(){
-        if ((xmlhttp.readyState == 4) && (xmlhttp.status == 200)){
-            var target = document.getElementById('editspace');
-            target.value =xmlhttp.responseText;
-        }else{
-        }
-    }
+    } 
 }
+function loadCssForEdit(fn){
+    if (css.loaded === true && !confirm("Did you save?")){
+            return;
+        } else {
+            var filename = "./resources/CSS/"+fn;
+            var xmlhttp = new XMLHttpRequest();
+            xmlhttp.open("GET", filename, true);
+            xmlhttp.send();
+            xmlhttp.onreadystatechange = function(){
+                if ((xmlhttp.readyState == 4) && (xmlhttp.status == 200)){
+                    document.getElementById('editspace').value =xmlhttp.responseText;
+                    document.getElementById('titlefield').value = fn;
+                    document.getElementById('titlefield').disabled = true;
+                    css.loaded = true;
+                }else{
+                }
+            }
+        }
+}
+function newCssDoc(){
+    if (css.loaded === true && !confirm("Did you save?")){
+            return;
+        } else {
+            document.getElementById('editspace').value = "";
+            document.getElementById('titlefield').value = "";
+            document.getElementById('titlefield').disabled = false;
+        }
+}
+
+// Header Footer functions
+
+function inithf(){
+        console.log('inithf running!')
+    loadHeadersList();
+    loadFootersList();
+    
+}
+
 
 
 
