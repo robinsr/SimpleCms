@@ -2,13 +2,16 @@ var path = require('path')
   , fs = require('fs')
   , logger = require('./logger')
   , app = require('http').createServer(authcheck)
-  , util = require('util');
+  , util = require('util')
+  , UglifyJS = require("uglify-js")
+  , cmspass = require('./cmspass');
+
 
 
 
 function authcheck(req, res) {
         var auth = req.headers['authorization'];  // auth is in base64(username:password)  so we need to decode the base64
-        console.log("Authorization Header is: ", auth);
+        logger.log("info","Authorization Header is: ", auth);
  
         if(!auth) {    
                 res.statusCode = 401;
@@ -19,12 +22,13 @@ function authcheck(req, res) {
                 var tmp = auth.split(' ');   
                 var buf = new Buffer(tmp[1], 'base64'); // create a buffer and tell it the data coming in is base64
                 var plain_auth = buf.toString();        // read it back out as a string
-                console.log("Decoded Authorization ", plain_auth);
+                logger.log("info","Decoded Authorization ", plain_auth);
                 var creds = plain_auth.split(':');      // split on a ':'
                 var username = creds[0];
                 var password = creds[1];
+                    logger.log("info","login attempt: user: "+creds[0]+" pass: "+creds[1]);
  
-                if((username == 'ry') && (password == 'guy')) {   // Is the username/password correct?
+                if((username == cmspass.name) && (password == cmspass.pw)) {   // Is the username/password correct?
                         handler(req,res);
                 }
                 else {
@@ -38,61 +42,26 @@ function authcheck(req, res) {
 function handler (req, res){
 
   if (req.method == 'GET') {
-      
+      var dirname;
+      var filetype;
       //function to compile list of articles stored in .json docs for editing
     if (req.url == '/filelist'){
-        logger.log('info','file search starting');
-        fs.readdir('./jsondocs', function(err, files){
-            if (err){
-                logger.log('info','error in reading directory');
-                res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                res.end('There was an error fetching files');
-                return;
-            } else {
-                logger.log('info','found files');
-                var text = [];
-                for (i=0;i<files.length;i++){
-                    if (path.extname(files[i]) == '.json'){
-                        text.push(files[i]);
-                    } else {
-                        //do nothing!
-                    }
-                    
-                }
-                var message = JSON.stringify(text);
-                res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                res.end(message);
-                logger.log('info','files sent');
-                return;
-            }
-        });
+        dirname = "./jsondocs";
+        filetype = ".json";
+        returnfiles(dirname, filetype, res)
     } else if (req.url == '/csslist'){
-        logger.log('info','css search starting');
-        fs.readdir('./resources/CSS', function(err, files){
-            if (err){
-                logger.log('info','error in reading directory');
-                res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                res.end('There was an error fetching files');
-                return;
-            } else {
-                logger.log('info','found files');
-                var text = [];
-                for (i=0;i<files.length;i++){
-                    if (path.extname(files[i]) == '.css'){
-                        text.push(files[i]);
-                    } else {
-                        //do nothing!
-                    }
-                    
-                }
-                var message = JSON.stringify(text);
-                res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                res.end(message);
-                logger.log('info','css list sent');
-                return;
-            }
-        });
-  } else if (req.url != '/csslist' && req.url != '/filelist'){
+        dirname = "./resources/CSS";
+        filetype = ".css";
+        returnfiles(dirname, filetype, res)
+    } else if (req.url == '/headers'){
+        dirname = "./resources/headers";
+        filetype = ".html";
+        returnfiles(dirname, filetype, res)
+    } else if (req.url == '/footers'){
+        dirname = "./resources/footers";
+        filetype = ".html";
+        returnfiles(dirname, filetype, res)
+    } else if (req.url != '/csslist' && req.url != '/filelist' && req.url != '/headers'){
       logger.log('info','fetching '+req.url);
       
       var filePath = "."+req.url;
@@ -118,6 +87,11 @@ function handler (req, res){
                 contentType = 'application/json;'
         }
         
+        if (extname == '.js'){
+            console.log(filePath);
+            content = UglifyJS.minify(filePath);
+        }
+        
         fs.exists(filePath, function(exists) {
      
             if (exists) {
@@ -128,6 +102,7 @@ function handler (req, res){
                          logger.log('info','warn','there was an error in serving up a file');
                     }
                     else {
+                        
                         res.writeHead(200, { 'Content-Type': contentType });
                         res.end(content, 'utf-8');
                     }
@@ -206,33 +181,30 @@ function handler (req, res){
             });
             
         });
-    } else if (req.method == 'POST' && req.url == '/loadcssfile'){
+    } else if (req.method == 'POST' && req.url == '/savecssfile'){
             // currently this function is not used. accomplished with a simple get lol
-        logger.log('info','getting CSS for edit');
-        req.on('data', function(chunk){
-            var a = JSON.parse(chunk);
-            logger.log('info','getting CSS for edit: '+a)
-            
-            var path = "./resources/CSS/"+a;
-            
-            fs.exists(path, function(ex){
-                if (ex){
-                    fs.readFile(path, function (err, c){
-                        if (err) {
-                        res.writeHead(500);
-                        res.end();
-                         logger.log('info','there was an error in serving up CSS file');
-                        }
-                        else {
-                            var content = {"css":c};
-                            var jsonstring = JSON.stringify(content);
-                        res.writeHead(200, { 'Content-Type;': 'application/json' });
-                        res.end(jsonstring, 'utf-8');
-                        }  
-                    });
-                }
-            });
-        });
+        logger.log('info','saving CSS');
+         req.on('data', function(chunk) {
+      logger.log('info',"Received body data:");
+      
+      var a = JSON.parse(chunk);
+        console.log(util.inspect(a));
+        
+
+            console.log('received data'); 
+            var fileName = "./resources/CSS/"+a.url;
+            fs.writeFile(fileName, a.css, function(err){
+                    if (err){
+                        logger.log('info','error writing to file '+err);
+                        res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+                        res.end('There was a problem saving');
+                    } else {
+                        logger.log('info','file written successfully');
+                        res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+                        res.end('File Write Success');
+                    }
+                });
+     });
     }
 }
 
@@ -261,8 +233,85 @@ function constructhtml(a, callback){
   logger.log('info',html);
   callback(a);
 }
+function returnfiles(d,ft,res){
+    logger.log('info','file search starting in directory '+d);
+        fs.readdir(d, function(err, files){
+            if (err){
+                logger.log('info','error in reading directory');
+                res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+                res.end('There was an error fetching files');
+                return;
+            } else {
+                logger.log('info','found files');
+                var text = [];
+                for (i=0;i<files.length;i++){
+                    if (path.extname(files[i]) == ft){
+                        text.push(files[i]);
+                    } else {
+                        //do nothing!
+                    }
+                    
+                }
+                var message = JSON.stringify(text);
+                res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+                res.end(message);
+                logger.log('info','files sent');
+                return;
+            }
+        });
+}
 
 
 app.listen(8124);
 
-
+        /*logger.log('info','file search starting');
+        fs.readdir('./jsondocs', function(err, files){
+            if (err){
+                logger.log('info','error in reading directory');
+                res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+                res.end('There was an error fetching files');
+                return;
+            } else {
+                logger.log('info','found files');
+                var text = [];
+                for (i=0;i<files.length;i++){
+                    if (path.extname(files[i]) == '.json'){
+                        text.push(files[i]);
+                    } else {
+                        //do nothing!
+                    }
+                    
+                }
+                var message = JSON.stringify(text);
+                res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+                res.end(message);
+                logger.log('info','files sent');
+                return;
+            }
+        });
+    } else if (req.url == '/csslist'){
+        logger.log('info','css search starting');
+        fs.readdir('./resources/CSS', function(err, files){
+            if (err){
+                logger.log('info','error in reading directory');
+                res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+                res.end('There was an error fetching files');
+                return;
+            } else {
+                logger.log('info','found files');
+                var text = [];
+                for (i=0;i<files.length;i++){
+                    if (path.extname(files[i]) == '.css'){
+                        text.push(files[i]);
+                    } else {
+                        //do nothing!
+                    }
+                    
+                }
+                var message = JSON.stringify(text);
+                res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+                res.end(message);
+                logger.log('info','css list sent');
+                return;
+            }
+        });*/
