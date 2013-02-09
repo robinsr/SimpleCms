@@ -9,25 +9,27 @@
 // Article Editor functions:
 
 
-var article = [];
-function initarticle(){
-    console.log('initarticle running!')
-    loadFileList();
-    loadCssList();
-    loadHeadersList();
-    loadFootersList();
-    register();
-    loadcontrols();
-}
-function register(){
-        // register all the events when the DOM changes. not sure if this is the best method...
-    registerPop();
-    registerDrag();
-    registerClone();
-    registerChangeTitle();
-    registerURL();
-}
-function loadFileList(){
+var article = {
+    init : function(){
+        console.log('initarticle running!')
+        article.loadFileList();
+        article.loadCssList();
+        article.loadHeadersList();
+        article.loadFootersList();
+        article.register();
+        article.loadcontrols();
+    },
+
+    register: function(){
+            // register all the events when the DOM changes. not sure if this is the best method...
+        article.registerPop();
+        article.registerDrag();
+        article.registerClone();
+        article.registerChangeTitle();
+        article.registerURL();
+    },
+
+    loadFileList:function(){
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("GET", "/filelist", true);
     xmlhttp.send();
@@ -61,12 +63,13 @@ function loadFileList(){
         {
             console.log("Error in Connection");
         }
-        registerFileDelete();
-        registerGetFile();
+        article.registerFileDelete();
+        article.registerGetFile();
     }
-}
+
+},
     // GIVE ME A CALLBACK, IM ASYNCRONOUS!!!!
-function getList(t,cb){
+getList:function(t,cb){
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("GET", t, true);
     xmlhttp.send();
@@ -79,9 +82,9 @@ function getList(t,cb){
             console.log("Error in Connection. Did not get "+t);
         }
     }  
-}
-function loadCssList(){
-    getList("/csslist",function(list){
+},
+loadCssList:function(){
+    article.getList("/csslist",function(list){
     var target = document.getElementById("csslist");
     target.innerHTML = "";
     for (i=0;i<list.length;i++){
@@ -115,12 +118,12 @@ function loadCssList(){
         tr.appendChild(td2);
         target.appendChild(tr);
 
-        registerCssDelete();
+        article.registerCssDelete();
     }
     });
-}
-function loadHeadersList(){
-    getList("/headers",function(list){
+},
+loadHeadersList:function(){
+    article.getList("/headers",function(list){
        var target = document.getElementById("headerlist"); 
        target.innerHTML = "";
         for (i=0;i<list.length;i++){
@@ -157,9 +160,9 @@ function loadHeadersList(){
         //registerHeadersDelete();
     }
     });
-}
-function loadFootersList(){
-    getList("/headers",function(list){
+},
+loadFootersList:function(){
+    article.getList("/headers",function(list){
        var target = document.getElementById("footerlist"); 
        target.innerHTML = "";
         for (i=0;i<list.length;i++){
@@ -196,8 +199,8 @@ function loadFootersList(){
         //registerFootersDelete();
     }
     });
-}
-function registerGetFile(){
+},
+registerGetFile:function(){
         // finds the list of documents that can be edited, triggers getFile 
     var filelist = document.getElementsByClassName('fileitem');
     for (var i=0;i<filelist.length;i++){
@@ -207,15 +210,15 @@ function registerGetFile(){
             var fetchdoc = "./jsondocs/"+me.target.text;
             if (article.loaded === true){
                 if (confirm('loading a new file will clear your current work. Did you save?')){
-                    getFile(fetchdoc);
+                    article.getFile(fetchdoc);
                 }
             }else{
-                getFile(fetchdoc);
+                article.getFile(fetchdoc);
             }
         }
     }
-}
-function getFile(doc){
+},
+getFile:function(doc){
         // fetches the json doc with ajax call, loads the page with textarea elements.
 
     var xmlhttp = new XMLHttpRequest();
@@ -242,7 +245,7 @@ function getFile(doc){
             for (i=0;i<a.content.length;i++){
                 var e = a.content[i].type;
                 var f = a.content[i].text;
-                createP(e,f);
+                article.createP(e,f);
                 //console.log(e+" "+f);
             }
                
@@ -324,13 +327,13 @@ function getFile(doc){
             }
             
             article.loaded = true;
-            register();
+            article.register();
         }else{
         }
 	}
-}
+},
 
-function registerChangeTitle(){
+registerChangeTitle:function(){
         // finds the title input and registers click event. changing the title and saving will create a new json doc
     var titletarget = document.getElementById("titlefield");
     titletarget.parentNode.onclick = function(){
@@ -342,8 +345,8 @@ function registerChangeTitle(){
             }
         }
     }
-}
-function registerURL(){
+},
+registerURL:function(){
     var field = document.getElementById('titlefield');
     field.onblur = function(){
         var title = field.value;
@@ -352,21 +355,21 @@ function registerURL(){
         var target = document.getElementById('urlfield');
         target.value = title;
     }
-}
-function loadcontrols(){
+},
+loadcontrols:function(){
         // finds the inputs for creating paragrpghs, headings, etc and registers their click events
 	var inputs=document.getElementsByClassName("newitem");
 	for (var i=0;i<inputs.length;i++){
 		var me = inputs[i]
 		me.onclick = function(me){
 			forName = me.target.getAttribute('for');
-				createP(forName);
-                register();
+				article.createP(forName);
+                article.register();
 
 		};
 	}
-}
-function createP(e,f){
+},
+createP:function(e,f){
         // creates a new text section, either paragraph, heading, or preformatted, and 
         // creates some controls on the section.
         // ends by calling the register function
@@ -383,7 +386,7 @@ function createP(e,f){
 	dropdiv.appendChild(spaccer)
 	dropdiv.className = "dropspace";
 	dropdiv.setAttribute('ondragover', 'return false')
-	dropdiv.setAttribute('ondrop', 'dropevent(event)')
+	dropdiv.setAttribute('ondrop', 'article.dropevent(event)')
 
 		//append the new divs
 	target.appendChild(newdiv);
@@ -431,9 +434,9 @@ function createP(e,f){
 	target.appendChild(cln);
 	target.appendChild(br);
 	target.appendChild(dropdiv);
-};
+},
 
-function registerPop(){
+registerPop:function(){
         // finds all the 'pop' buttons and registers their click events
 	var pops = document.getElementsByClassName("pop");
 	for (i=0;i<pops.length;i++){
@@ -444,37 +447,37 @@ function registerPop(){
 			document.getElementById("articledraft").removeChild(oldchild);
 		}
 	}
-}
-var dragobject = [];  //  WTF is this?
-var dragtext = [];
-function registerDrag(){
+},
+dragobject : [],  //  WTF is this?
+dragtext : [],
+registerDrag:function(){
         // finds all the input sections and prepares to transfer the value in the text area when the element is dragged
 	var drags = document.getElementsByClassName("itemholder")
 	for (i=0;i<drags.length;i++){
 		var me = drags[i];
 		me.ondragstart = function(me){
-			dragobject = me.target;
-			dragtext = me.target.getElementsByTagName("TEXTAREA")[0].value;
-            console.log(dragobject);
+			article.dragobject = me.target;
+			article.dragtext = me.target.getElementsByTagName("TEXTAREA")[0].value;
+            //console.log(dragobject);
 		}	
 	}
-}
-function dropevent(event){
+},
+dropevent:function(event){
         // when the dragged element is dropped, thie function clones the element, pops it, and loads the clone. 
-    if (event.target.parentNode == dragobject){
+    if (event.target.parentNode == article.dragobject){
 		return;
 	} else {
-        console.log(dragobject);
-		var newobject = dragobject.cloneNode(true);
-			newobject.getElementsByTagName("TEXTAREA")[0].value = dragtext;
-				olddropspace = dragobject.nextSibling;
-				document.getElementById("articledraft").removeChild(dragobject);
+        console.log(article.dragobject);
+		var newobject = article.dragobject.cloneNode(true);
+			newobject.getElementsByTagName("TEXTAREA")[0].value = article.dragtext;
+				olddropspace = article.dragobject.nextSibling;
+				document.getElementById("articledraft").removeChild(article.dragobject);
 		event.target.parentNode.parentNode.insertBefore(newobject, event.target.parentNode.nextSibling);
 			//must re-register event handlers!
-		register();
+		article.register();
 	}
-}
-function registerClone(){
+},
+registerClone:function(){
         // finds all the 'clone' buttons and registers their click events. Clones the element when clicked, inserts the 
         // new node after the original node, re-registers events. 
 	var clones = document.getElementsByClassName("clone");
@@ -488,30 +491,30 @@ function registerClone(){
 			register();
 			}
 		}
-}
-function registerFileDelete(){
+},
+registerFileDelete:function(){
     var inputs = document.getElementsByClassName("deletearticle");
     for (i=0;i<inputs.length;i++){
         var me = inputs[i];
         me.onclick = function(me){
             var filename = me.target.parentNode.previousSibling.getElementsByTagName("a")[0].text;
             var type = "file";
-            deletefile(filename,type);
+            article.deletefile(filename,type);
         }
     }
-}
-function registerCssDelete(){
+},
+registerCssDelete:function(){
     var inputs = document.getElementsByClassName("deletecss");
     for (i=0;i<inputs.length;i++){
         var me = inputs[i];
         me.onclick = function(me){
             var filename = me.target.parentNode.previousSibling.getElementsByTagName("label")[0].innerText;
             var type = "css";
-            deletefile(filename,type);
+            article.deletefile(filename,type);
         }
     }
-}
-function deletefile(m,t){
+},
+deletefile:function(m,t){
     if (confirm("Delete "+m+"?")){
         var xmlhttp = new XMLHttpRequest();
         var json = {"file": m,"type":t};
@@ -522,16 +525,16 @@ function deletefile(m,t){
         xmlhttp.onreadystatechange = function(){
             if ((xmlhttp.readyState == 4) && (xmlhttp.status == 200)){
                if (confirm(xmlhttp.responseText)){
-               loadFileList();
-               loadCssList();                   
+               article.loadFileList();
+               article.loadCssList();                   
                }
             } else {
             }
         }
     }
-}
+},
 	//preview button
-function preview(){
+preview:function(){
 	
 	var article = gathertext();
 	var target = document.getElementById("preview");
@@ -551,8 +554,8 @@ function preview(){
 		target.appendChild(pview);
 
 	}
-}
-function gathertext(){
+},
+gathertext:function(){
 	var d = [];
 		//finds all the input for the new article and prepares the content section of the json doc for sending to the server
 	var items = document.getElementsByClassName("item");
@@ -560,8 +563,8 @@ function gathertext(){
 			d.push({text: items[i].value, type: items[i].previousSibling.innerHTML, order: i });
 		}
 	return d;
-}
-function gatherthings(c){
+},
+gatherthings:function(c){
     var target;
     if (c == 'css'){target = 'csscheckbox'}
     else if (c == 'hf'){target = 'headercheckbox'}
@@ -576,24 +579,24 @@ function gatherthings(c){
         }
     }
     return d;
-}
-function save(){
+},
+save:function(){
         // calls the gather() function, fully assembles the json, opens an ajax call, sends json to the server, 
         // displays success or fail
 	var d = new Date();
-    var article = {
+    var message = {
         url: document.getElementById("urlfield").value,
 		title: document.getElementById("titlefield").value,
 		savedate: d.getTime(),
-        content: gathertext(),
-        css: gatherthings('css'),
-        header: gatherthings('hf'),
-        footer: gatherthings('ff'),
+        content: article.gathertext(),
+        css: article.gatherthings('css'),
+        header: article.gatherthings('hf'),
+        footer: article.gatherthings('ff'),
         headertags: document.getElementById('tagsedit').value
 	}
 	var xmlhttp = new XMLHttpRequest();
 	xmlhttp.open("POST", "/savedata", true);
-	var newarticle = JSON.stringify(article);
+	var newarticle = JSON.stringify(message);
 	xmlhttp.setRequestHeader("Content-Type", "application/json");
 	xmlhttp.send(newarticle);
 
@@ -610,8 +613,27 @@ function save(){
         }
     }
 }
+}
 
+
+
+//
+//
+//
+//
+//
+//
+//
+//
 // common to all pages functions
+//
+//
+//
+//
+//
+
+
+
 function hide(){
     var body = document.getElementsByTagName("body")[0];
     if (body.className.match(/(?:^|\s)hide(?!\S)/)){
