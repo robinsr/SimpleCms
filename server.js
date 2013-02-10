@@ -1,43 +1,92 @@
-var path = require('path')
-  , fs = require('fs')
-  , logger = require('./logger')
-  , app = require('http').createServer(authcheck)
-  , util = require('util')
-  , UglifyJS = require("uglify-js")
-  , cmspass = require('./cmspass');
+var path =      require('path')
+  , fs =        require('fs')
+  , logger =    require('./logger')
+  , app =       require('http').createServer(serve)
+  , util =      require('util')
+  , UglifyJS =  require("uglify-js")
+  , cmspass =   require('./auth/cmspass');
 
 
 
+function serve(req,res){
+    
+    var re1='(.)';    // Any Single Character 1
+    var re2='((?:[a-z][a-z]+))';	// Word 1
+    var re3='(.)';	// Any Single Character 2
 
-function authcheck(req, res) {
-        var auth = req.headers['authorization'];  // auth is in base64(username:password)  so we need to decode the base64
-        logger.log("info","Authorization Header is: ", auth);
- 
-        if(!auth) {    
-                res.statusCode = 401;
-                res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
-                res.end('<html><body>Need some creds son</body></html>');
+    var p = new RegExp(re1+re2+re3,["i"]);
+    var m = p.exec(req.url);
+    
+    if (m){
+        if ((m[0] == "/auth/")||(m[0] == "/auth")){
+            authcheck(req,res);
+            return;
         }
-        else if(auth) {    // The Authorization was passed in so now we validate it
-                var tmp = auth.split(' ');   
-                var buf = new Buffer(tmp[1], 'base64'); // create a buffer and tell it the data coming in is base64
-                var plain_auth = buf.toString();        // read it back out as a string
-                logger.log("info","Decoded Authorization ", plain_auth);
-                var creds = plain_auth.split(':');      // split on a ':'
-                var username = creds[0];
-                var password = creds[1];
-                    logger.log("info","login attempt: user: "+creds[0]+" pass: "+creds[1]);
- 
-                if((username == cmspass.name) && (password == cmspass.pw)) {   // Is the username/password correct?
-                        handler(req,res);
-                }
-                else {
-                        res.statusCode = 401; 
-                        res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
-                        // res.statusCode = 403;  
-                        res.end('<html><body>You shall not pass</body></html>');
-                }
+    }else {
+
+    //
+    //
+    // at this point, ive determined if this is admin or user, redirected admin to auth check, onced pass 
+    // admin has access to APIs to create and delete files. 
+    // now there needs to be a mechanism for templating pages for readers combing"
+    //  header file
+    //  header tags
+    //  navigation file
+    //  html section of the articles json file
+    //  footer file
+    //
+    // 
+    
+    }
+}
+
+function authcheck(req, res) {  // authorization based on username, password, allowed ip address
+        var auth = req.headers['authorization'];  
+        var ip_address = null;
+        var ip_addresspass = null;
+        if(req.headers['x-forwarded-for']){
+            ip_address = req.headers['x-forwarded-for'];
         }
+        else {
+            ip_address = req.connection.remoteAddress;
+        }     
+            if(!auth) {    
+                    res.statusCode = 401;
+                    res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
+                    res.end('<html><body>Need some creds son</body></html>');
+            }
+            else if(auth) {    // The Authorization was passed in so now we validate it
+                    var tmp = auth.split(' ');   
+                    var buf = new Buffer(tmp[1], 'base64'); 
+                    var plain_auth = buf.toString();       
+                    //logger.log("info","Decoded Authorization ", plain_auth);
+                    var creds = plain_auth.split(':'); 
+                    var username = creds[0];
+                    var password = creds[1];
+                        //logger.log("info","login attempt: user: "+creds[0]+", pass: "+creds[1]+", ip: "+ip_address);
+                    for (i=0;i<cmspass.ip.length;i++){  // validate the ip address, only allowed ips get in
+                        allowed = cmspass.ip[i];
+                        if (String(ip_address) == cmspass.ip[i]){
+                            ip_addresspass = true;
+                        } 
+                    }
+     
+                    if((username == cmspass.name) && (password == cmspass.pw) && (ip_addresspass === true)) {   // Is the username/password correct?
+                            handler(req,res);
+                    }
+                    else if((username == cmspass.name) && (password == cmspass.pw) && (ip_addresspass !== true)) { // forbidden ip address
+                            //res.statusCode = 401; 
+                            res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
+                            res.statusCode = 403;  
+                            res.end('<html><body>Your location is bad</body></html>');
+                                logger.log("info","Bad Location")
+                    } else {
+                            res.statusCode = 401; 
+                            res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
+                            // res.statusCode = 403;  
+                            res.end('<html><body>You shall not pass</body></html>');
+                    }
+            }
 }
 function handler (req, res){
 
@@ -45,29 +94,29 @@ function handler (req, res){
       var dirname;
       var filetype;
       //function to compile list of articles stored in .json docs for editing
-    if (req.url == '/filelist'){
+    if (req.url == '/auth/filelist'){
         dirname = "./jsondocs";
         filetype = ".json";
         returnfiles(dirname, filetype, res)
-    } else if (req.url == '/csslist'){
+    } else if (req.url == '/auth/csslist'){
         dirname = "./resources/CSS";
         filetype = ".css";
         returnfiles(dirname, filetype, res)
-    } else if (req.url == '/headers'){
+    } else if (req.url == '/auth/headers'){
         dirname = "./resources/headers";
         filetype = ".html";
         returnfiles(dirname, filetype, res)
-    } else if (req.url == '/footers'){
+    } else if (req.url == '/auth/footers'){
         dirname = "./resources/footers";
         filetype = ".html";
         returnfiles(dirname, filetype, res)
-    } else if (req.url != '/csslist' && req.url != '/filelist' && req.url != '/headers'){
+    } else if (req.url != '/auth/csslist' && req.url != '/auth/filelist' && req.url != '/auth/headers' && req.url != '/auth/footers'){
       logger.log('info','fetching '+req.url);
       
       var filePath = "."+req.url;
       
-      if (filePath == './'){
-          filePath = './cms.html';
+      if ((filePath == './auth')||(filePath == './auth/')){
+          filePath = './auth/cms.html';
       }
       
   
@@ -117,7 +166,7 @@ function handler (req, res){
     }// end GET section    
   } 
   
-  if (req.method == 'POST' && req.url == '/savedata') {
+  if (req.method == 'POST' && req.url == '/auth/savedata') {
     logger.log('info','this is a post');
   
  
@@ -151,7 +200,7 @@ function handler (req, res){
         
 
      });
-    } else if (req.method == 'POST' && req.url == '/deletefile'){
+    } else if (req.method == 'POST' && req.url == '/auth/deletefile'){
         logger.log('info','delete file going');
         req.on('data', function(chunk) {
         logger.log('info',"Received body data:");
@@ -181,25 +230,33 @@ function handler (req, res){
             });
             
         });
-    } else if (req.method == 'POST' && req.url == '/savecssfile'){
+    } else if (req.method == 'POST' && req.url == '/auth/savehfcssfile'){
             // currently this function is not used. accomplished with a simple get lol
-        logger.log('info','saving CSS');
          req.on('data', function(chunk) {
-      logger.log('info',"Received body data:");
       
       var a = JSON.parse(chunk);
         console.log(util.inspect(a));
-        
-
-            console.log('received data'); 
-            var fileName = "./resources/CSS/"+a.url;
-            fs.writeFile(fileName, a.css, function(err){
+        var fileName = null;
+        switch (a.doctype){
+            case 'header':
+                fileName = "./resources/headers/"+a.url;
+                break;
+            case 'footer':
+                fileName = "./resources/footers/"+a.url;
+                break;
+            case 'css':
+                fileName = "./resources/CSS/"+a.url;
+                break;
+            
+        }
+            
+            fs.writeFile(fileName, a.content, function(err){
                     if (err){
                         logger.log('info','error writing to file '+err);
                         res.writeHead(200, { 'Content-Type': 'text/event-stream' });
                         res.end('There was a problem saving');
                     } else {
-                        logger.log('info','file written successfully');
+                        logger.log('info','file written successfully: '+fileName);
                         res.writeHead(200, { 'Content-Type': 'text/event-stream' });
                         res.end('File Write Success');
                     }
@@ -262,56 +319,4 @@ function returnfiles(d,ft,res){
 }
 
 
-app.listen(8124);
-
-        /*logger.log('info','file search starting');
-        fs.readdir('./jsondocs', function(err, files){
-            if (err){
-                logger.log('info','error in reading directory');
-                res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                res.end('There was an error fetching files');
-                return;
-            } else {
-                logger.log('info','found files');
-                var text = [];
-                for (i=0;i<files.length;i++){
-                    if (path.extname(files[i]) == '.json'){
-                        text.push(files[i]);
-                    } else {
-                        //do nothing!
-                    }
-                    
-                }
-                var message = JSON.stringify(text);
-                res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                res.end(message);
-                logger.log('info','files sent');
-                return;
-            }
-        });
-    } else if (req.url == '/csslist'){
-        logger.log('info','css search starting');
-        fs.readdir('./resources/CSS', function(err, files){
-            if (err){
-                logger.log('info','error in reading directory');
-                res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                res.end('There was an error fetching files');
-                return;
-            } else {
-                logger.log('info','found files');
-                var text = [];
-                for (i=0;i<files.length;i++){
-                    if (path.extname(files[i]) == '.css'){
-                        text.push(files[i]);
-                    } else {
-                        //do nothing!
-                    }
-                    
-                }
-                var message = JSON.stringify(text);
-                res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                res.end(message);
-                logger.log('info','css list sent');
-                return;
-            }
-        });*/
+app.listen(8080);
