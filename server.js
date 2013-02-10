@@ -1,46 +1,148 @@
-var path =      require('path')
-  , fs =        require('fs')
-  , logger =    require('./logger')
-  , app =       require('http').createServer(serve)
-  , util =      require('util')
-  , UglifyJS =  require("uglify-js")
-  , cmspass =   require('./auth/cmspass');
-
+var path = require('path')
+  , fs = require('fs')
+  , logger = require('./logger')
+  , app = require('http').createServer(serve)
+  , util = require('util')
+  , UglifyJS = require("uglify-js")
+  , cmspass = require('./auth/cmspass') 
+  , errorpages = require('./errorpages'); // 404 pages stored in strings
 
 
 function serve(req,res){
     
-    var re1='(.)';    // Any Single Character 1
-    var re2='((?:[a-z][a-z]+))';	// Word 1
-    var re3='(.)';	// Any Single Character 2
+    console.log('getting a request');
+    
+    var re1='(.)';                  // matches /auth/, any file in this directory requires authentication
+    var re2='((?:[a-z][a-z]+))';    // CMS files are stored here
+    var re3='(.)';	
 
     var p = new RegExp(re1+re2+re3,["i"]);
     var m = p.exec(req.url);
     
     if (m){
-        if ((m[0] == "/auth/")||(m[0] == "/auth")){
-            authcheck(req,res);
+        console.log('regex returned a value'); // ie the request url is not blank
+        if ((m[0] == "/auth/")||(m[0] == "/auth")){  
+            console.log("sending to auth check");   // match for '/auth'. stop serving files and send to 
+            authcheck(req,res);                     // auth check to check credentials
             return;
-        }
-    }else {
+        } else {
+ 
+        console.log('no regex value');  // ie, the index page
 
-    //
-    //
-    // at this point, ive determined if this is admin or user, redirected admin to auth check, onced pass 
-    // admin has access to APIs to create and delete files. 
-    // now there needs to be a mechanism for templating pages for readers combing"
-    //  header file
-    //  header tags
-    //  navigation file
-    //  html section of the articles json file
-    //  footer file
-    //
-    // 
-    
+        var extname = path.extname(req.url); 
+        console.log('extname is '+extname);
+
+        if (extname){           // if the request is for a specific file (.js, .json, etc) then there's no need
+            handler(req,res);   // no need to compile a page. redirects request to regular file handler
+            return;
+        } else {
+
+            var jsondoc = "./jsondocs"+req.url+'.json'; // checks to see if there is a corresponding artcle
+                                                        // in the jsondocs directory    
+            console.log('searching for '+jsondoc)
+            fs.exists(jsondoc, function(ex){
+                fs.readFile(jsondoc, function(error, content){
+                    if (error){
+                            console.log('not found, redirecting');  // if not then 404
+                        sendTo404Page(res,req);
+                        } else {
+                        console.log('page found, starting compiler'); // if yes then compile the page
+                        var json = JSON.parse(content);
+                        compilePageParts(json, res);
+                        return;
+                    }
+                });
+            });
+            }
+        }
+    } else {
+        console.log('regex returned no value, redirect to index?');  // this handles the index page
+        var jsondoc = './jsondocs/index.json';
+        fs.exists(jsondoc, function(ex){
+                fs.readFile(jsondoc, function(error, content){
+                    if (error){
+                            console.log('not found, redirecting');
+                        sendTo404Page(res,req);
+                        } else {
+                        console.log('page found, starting compiler');
+                        var json = JSON.parse(content);
+                        compilePageParts(json, res);
+                        return;
+                    }
+                });
+            });
     }
 }
+function compilePageParts(a,res){  // compile all the parts of the page and send out
+    var page = "";
+    complileReadFile('header',a.header[0].file,function(b){     // compileReadFile reads files on disk and 
+        page += b;                                              // returns them in a string
+        complileReadFile('css',a.css[0].file,function(b){
+            page += "<style>";
+            page += b;
+            page += "</style>";
+            getHTML(a,function(b){
+                page +=b;
+                complileReadFile('footer',a.footer[0].file,function(b){  
+                    page += b;
+                    res.writeHead(200, { 'Content-Type': "text/html" });    // after page is complete
+                        res.end(page, 'utf-8');                             // send it back
 
-function authcheck(req, res) {  // authorization based on username, password, allowed ip address
+                })
+            })
+        })
+    })
+}
+function getHeader(a,cb){
+    console.log(a);
+    var b = 'next'
+    cb(b);
+}
+function getCSS(a,cb){
+    console.log(a);
+    var b = 'thing'
+    cb(b);
+}
+function getHTML(a,cb){
+    data = a.html;
+    cb(data);
+}
+function combine(){
+    console.log("do")
+;}
+
+function complileReadFile(type, filename, cb){
+    console.log('compiler asking for '+filename);
+    var filePath = null
+
+    switch(type){
+        case 'header':
+            filePath = "./resources/headers/"+filename;
+            break;
+        case 'footer':
+            filePath = "./resources/footers/"+filename;
+            break;
+        case 'css':
+            filePath = "./resources/CSS/"+filename;
+    }
+    fs.exists(filePath, function(ex){
+        fs.readFile(filePath, function(err,c){
+            if (err){
+                console.log('cant read '+filePath);
+            } else {
+                var data = c.toString();
+                //console.log(data);
+                cb(data);
+                return;
+            }
+        });
+    });
+}
+function sendTo404Page(res,req){  // handles compile 404, file 404 is handled elsewhere 
+    res.statusCode = 200;  
+    res.end(errorpages.fourohfour);
+}
+function authcheck(req, res) {  // authorization based on username, password, & allowed ip address
         var auth = req.headers['authorization'];  
         var ip_address = null;
         var ip_addresspass = null;
@@ -88,25 +190,25 @@ function authcheck(req, res) {  // authorization based on username, password, al
                     }
             }
 }
-function handler (req, res){
+function handler (req, res){  // normal file handler and sorts out api calls coming from the CMS
 
   if (req.method == 'GET') {
       var dirname;
       var filetype;
       //function to compile list of articles stored in .json docs for editing
-    if (req.url == '/auth/filelist'){
+    if (req.url == '/auth/filelist'){  // api call
         dirname = "./jsondocs";
         filetype = ".json";
         returnfiles(dirname, filetype, res)
-    } else if (req.url == '/auth/csslist'){
+    } else if (req.url == '/auth/csslist'){ // api call
         dirname = "./resources/CSS";
         filetype = ".css";
-        returnfiles(dirname, filetype, res)
-    } else if (req.url == '/auth/headers'){
+        returnfiles(dirname, filetype, res) 
+    } else if (req.url == '/auth/headers'){ // api call
         dirname = "./resources/headers";
         filetype = ".html";
         returnfiles(dirname, filetype, res)
-    } else if (req.url == '/auth/footers'){
+    } else if (req.url == '/auth/footers'){ // api call
         dirname = "./resources/footers";
         filetype = ".html";
         returnfiles(dirname, filetype, res)
@@ -115,7 +217,7 @@ function handler (req, res){
       
       var filePath = "."+req.url;
       
-      if ((filePath == './auth')||(filePath == './auth/')){
+      if ((filePath == './auth')||(filePath == './auth/')){ // index of sorts; for the CMS dashboard
           filePath = './auth/cms.html';
       }
       
@@ -136,12 +238,18 @@ function handler (req, res){
                 contentType = 'application/json;'
         }
         
-        if (extname == '.js'){
-            console.log(filePath);
-            content = UglifyJS.minify(filePath);
+        //if (extname == '.js'){
+         //   console.log(filePath);
+         //   content = UglifyJS.minify(filePath);
+        //}
+
+        if (filePath == "./server.js"){  // do not serve up the server source, big no no. 
+            res.writeHead(200, { 'Content-Type': 'text/plain'});
+            res.end("__ what happened? 404"); // instead pretend it doesn't exist
+            return;
         }
         
-        fs.exists(filePath, function(exists) {
+        fs.exists(filePath, function(exists) {  // standard file server
      
             if (exists) {
                 fs.readFile(filePath, function(error, content) {
@@ -163,14 +271,14 @@ function handler (req, res){
             }
         });
         
-    }// end GET section    
+    }
   } 
   
-  if (req.method == 'POST' && req.url == '/auth/savedata') {
-    logger.log('info','this is a post');
+  if (req.method == 'POST' && req.url == '/auth/savedata') {    // saves the data from the text 
+    logger.log('info','this is a post');                        // editor into json docs
   
  
-       // saves the data from the text editor into json docs
+       
      req.on('data', function(chunk) {
       logger.log('info',"Received body data:");
       
@@ -200,7 +308,7 @@ function handler (req, res){
         
 
      });
-    } else if (req.method == 'POST' && req.url == '/auth/deletefile'){
+    } else if (req.method == 'POST' && req.url == '/auth/deletefile'){ // deletes a json or css file
         logger.log('info','delete file going');
         req.on('data', function(chunk) {
         logger.log('info',"Received body data:");
@@ -230,9 +338,8 @@ function handler (req, res){
             });
             
         });
-    } else if (req.method == 'POST' && req.url == '/auth/savehfcssfile'){
-            // currently this function is not used. accomplished with a simple get lol
-         req.on('data', function(chunk) {
+    } else if (req.method == 'POST' && req.url == '/auth/savehfcssfile'){ // saves a css or header/footer file
+        req.on('data', function(chunk) {
       
       var a = JSON.parse(chunk);
         console.log(util.inspect(a));
@@ -265,9 +372,9 @@ function handler (req, res){
     }
 }
 
-function constructhtml(a, callback){
-    console.log('construct running');
-    var html = "";
+function constructhtml(a, callback){    // when saving an article in the editor, this compiles the html
+    console.log('construct running');   // that will be served up when the page compiles.
+    var html = "</head><body>";         // this section is specific to how my blog pages are structured
   for(i=0;i<a.content.length; i++){
     var d = "";
     if (a.content[i].type == 'p'){
@@ -290,7 +397,7 @@ function constructhtml(a, callback){
   logger.log('info',html);
   callback(a);
 }
-function returnfiles(d,ft,res){
+function returnfiles(d,ft,res){  // returns the list of files requested in the api calls above
     logger.log('info','file search starting in directory '+d);
         fs.readdir(d, function(err, files){
             if (err){
