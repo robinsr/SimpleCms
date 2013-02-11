@@ -93,20 +93,10 @@ loadCssList:function(){
         lab.appendChild(p);
                 
                 
-        var del = document.createElement("button");
-        del.setAttribute("type", "button");
-        del.setAttribute("class","deletecss");
-        var deltext = document.createTextNode("Delete");
-        del.appendChild(deltext);
-                
-                
         td1.appendChild(lab);
-        td2.appendChild(del);
         tr.appendChild(td1);
         tr.appendChild(td2);
         target.appendChild(tr);
-
-        article.registerCssDelete();
     }
     });
 },
@@ -131,16 +121,7 @@ loadHeadersList:function(){
         lab.appendChild(inp);
         lab.appendChild(p);
                 
-                
-        var del = document.createElement("button");
-        del.setAttribute("type", "button");
-        del.setAttribute("class","deleteheader");
-        var deltext = document.createTextNode("Delete");
-        del.appendChild(deltext);
-                
-                
         td1.appendChild(lab);
-        td2.appendChild(del);
         tr.appendChild(td1);
         tr.appendChild(td2);
         target.appendChild(tr);
@@ -169,17 +150,9 @@ loadFootersList:function(){
         var lab = document.createElement("label");
         lab.appendChild(inp);
         lab.appendChild(p);
-                
-                
-        var del = document.createElement("button");
-        del.setAttribute("type", "button");
-        del.setAttribute("class","deletefooter");
-        var deltext = document.createTextNode("Delete");
-        del.appendChild(deltext);
-                
+                 
                 
         td1.appendChild(lab);
-        td2.appendChild(del);
         tr.appendChild(td1);
         tr.appendChild(td2);
         target.appendChild(tr);
@@ -195,7 +168,7 @@ registerGetFile:function(){
         var me = filelist[i]
 		me.onclick = function(me){
                 // dont want to lose your current work!
-            var fetchdoc = app.config.url+"/jsondocs/"+me.target.text;
+            var fetchdoc = "/jsondocs/"+me.target.text;
             if (article.loaded === true){
                 if (confirm('loading a new file will clear your current work. Did you save?')){
                     article.getFile(fetchdoc);
@@ -260,7 +233,7 @@ getFile:function(doc){
                     if (isNaN(i)){ // for..in.. iterates over every property including 'length' etc which causes errors
                     }else{   
                         if (typeof lookup[elem[i].nextSibling.innerHTML] != 'undefined') {
-                            console.log('makeMatch found ' + elem[i].nextSibling.innerHTML + ' in both lists');
+                            //console.log('makeMatch found ' + elem[i].nextSibling.innerHTML + ' in both lists');
                             elem[i].checked = true;
                         }
                     } 
@@ -456,17 +429,6 @@ registerFileDelete:function(){
         }
     }
 },
-registerCssDelete:function(){
-    var inputs = document.getElementsByClassName("deletecss");
-    for (i=0;i<inputs.length;i++){
-        var me = inputs[i];
-        me.onclick = function(me){
-            var filename = me.target.parentNode.previousSibling.getElementsByTagName("label")[0].innerText;
-            var type = "css";
-            article.deletefile(filename,type);
-        }
-    }
-},
 deletefile:function(m,t){
     if (confirm("Delete "+m+"?")){
         var xmlhttp = new XMLHttpRequest();
@@ -513,15 +475,20 @@ gathertext:function(){
 		//finds all the input for the new article and prepares the content section of the json doc for sending to the server
 	var items = document.getElementsByClassName("item");
 		for (i=0;i<items.length;i++){
-			d.push({text: items[i].value, type: items[i].previousSibling.innerHTML, order: i });
+            var clean = items[i].value;
+                clean = clean.replace(/\</g,"&lt;");
+                clean = clean.replace(/\>/g,"&gt;");
+			d.push({text:clean,type:items[i].previousSibling.innerHTML,order:i});
 		}
 	return d;
 },
+saveabort:null,
 gatherthings:function(c){
     var target;
-    if (c == 'css'){target = 'csscheckbox'}
-    else if (c == 'hf'){target = 'headercheckbox'}
-    else if (c == 'ff'){target = 'footercheckbox'}
+    var prompt;
+    if (c == 'css'){target = 'csscheckbox'; prompt = 'css';}
+    else if (c == 'hf'){target = 'headercheckbox'; prompt = 'header';}
+    else if (c == 'ff'){target = 'footercheckbox'; prompt = 'footer';}
     var d = [];
     var items = document.getElementsByClassName(target);
     for (i=0;i<items.length;i++){
@@ -531,41 +498,56 @@ gatherthings:function(c){
         } else {
         }
     }
+    if (d.length == 0){
+        alert('you left '+prompt+' blank. You need to select something');
+        article.saveabort = true;
+    }
     return d;
 },
-save:function(){
-        // calls the gather() function, fully assembles the json, opens an ajax call, sends json to the server, 
-        // displays success or fail
-	var d = new Date();
-    var message = {
-        url: document.getElementById("urlfield").value,
-		title: document.getElementById("titlefield").value,
-		savedate: d.getTime(),
-        content: article.gathertext(),
-        css: article.gatherthings('css'),
-        header: article.gatherthings('hf'),
-        footer: article.gatherthings('ff'),
-        headertags: document.getElementById('tagsedit').value
-	}
-	var xmlhttp = new XMLHttpRequest();
-	xmlhttp.open("POST", "/auth/savedata", true);
-	var newarticle = JSON.stringify(message);
-	xmlhttp.setRequestHeader("Content-Type", "application/json");
-	xmlhttp.send(newarticle);
-
-	//console.log('sent ajax call');
-    
-    xmlhttp.onreadystatechange = function() {        
-        if ((xmlhttp.readyState == 4) && (xmlhttp.status == 200)){
-            alert(xmlhttp.responseText);
+    save:function(){
+            // calls the gather() function, fully assembles the json, opens an ajax call, sends json to the server, 
+            // displays success or fail
+    	var d = new Date();
+        if (document.getElementById("titlefield").value.length == 0){
+            alert('you left the title blank.');
+            console.log('aborted save');
             return;
         }
-        else if ((xmlhttp.readyState == 4) && (xmlhttp.status != 200))
-        {
-            console.log("Error in Connection");
+        var message = {
+            url: document.getElementById("urlfield").value,
+    		title: document.getElementById("titlefield").value,
+    		savedate: d.getTime(),
+            content: article.gathertext(),
+            css: article.gatherthings('css'),
+            header: article.gatherthings('hf'),
+            footer: article.gatherthings('ff'),
+            headertags: document.getElementById('tagsedit').value
+    	}
+        if (article.saveabort == true){
+            article.saveabort = null;
+            console.log('aborted save');
+            return;
+        } else {
+           var xmlhttp = new XMLHttpRequest();
+    	   xmlhttp.open("POST", "/auth/savedata", true);
+    	   var newarticle = JSON.stringify(message);
+    	   xmlhttp.setRequestHeader("Content-Type", "application/json");
+    	   xmlhttp.send(newarticle);
+        
+        	   //console.log('sent ajax call');
+                
+            xmlhttp.onreadystatechange = function() {        
+                if ((xmlhttp.readyState == 4) && (xmlhttp.status == 200)){
+                    alert(xmlhttp.responseText);
+                    return;
+                }
+                else if ((xmlhttp.readyState == 4) && (xmlhttp.status != 200))
+                {
+                    console.log("Error in Connection");
+                }
+            }
         }
     }
-}
 }
 
 
@@ -658,6 +640,7 @@ var css = {
             target.appendChild(tr);
     
             css.registerCssItem();
+            css.registerFileDelete();
             }
         });
     },
@@ -690,7 +673,7 @@ var css = {
         if (css.loaded === true && !confirm("Did you save?")){
                 return;
             } else {
-                var filename = "./resources/CSS/"+fn;
+                var filename = "/resources/CSS/"+fn;
                 var xmlhttp = new XMLHttpRequest();
                 xmlhttp.open("GET", filename, true);
                 xmlhttp.send();
@@ -713,9 +696,38 @@ var css = {
                 document.getElementById('titlefield').value = "";
                 document.getElementById('titlefield').disabled = false;
             }
+    },
+    registerFileDelete:function(){
+        var inputs = document.getElementsByClassName("deletecss");
+        for (i=0;i<inputs.length;i++){
+            var me = inputs[i];
+            me.onclick = function(me){
+                var filename = me.target.parentNode.previousSibling.getElementsByTagName("a")[0].text;
+                var type = "css";
+                css.deletefile(filename,type);
+            }
+        }
+    },  
+    deletefile:function(m,t){
+    if (confirm("Delete "+m+"?")){
+        var xmlhttp = new XMLHttpRequest();
+        var json = {"file": m,"type":t};
+        var jsonstring = JSON.stringify(json);
+        xmlhttp.open("POST", "/auth/deletefile", true);
+        xmlhttp.setRequestHeader("Content-Type", "application/json");
+        xmlhttp.send(jsonstring);
+        xmlhttp.onreadystatechange = function(){
+            if ((xmlhttp.readyState == 4) && (xmlhttp.status == 200)){
+               if (confirm(xmlhttp.responseText)){
+                  css.init();
+               }
+            } else {
+            }
+        }
+        }
     }
 }
-    
+
 //
 //
 //
@@ -779,8 +791,8 @@ var hf = {
                 var filepath = null;
                 var filename = me.target.text;
                 var parentid = me.target.parentNode.parentNode.parentNode.id;
-                if (parentid == "headerlist"){filepath = "./resources/headers/";hf.doctype = "header";}
-                if (parentid == "footerlist"){filepath = "./resources/footers/";hf.doctype = "footer";}
+                if (parentid == "headerlist"){filepath = "/resources/headers/";hf.doctype = "header";}
+                if (parentid == "footerlist"){filepath = "/resources/footers/";hf.doctype = "footer";}
                 hf.loadHfForEdit(filepath,filename);
             }
         }
@@ -821,4 +833,144 @@ var hf = {
             }
         } 
     },
+}
+//
+//
+//
+//
+//
+//
+// ************************nav functions*******************
+//
+//
+//
+//
+//
+var nav = {
+    init:function(){
+        console.log('nav init running!');
+        cms_utils.getList("/auth/nav",function(list){
+            var target = document.getElementById("navlist");
+            target.innerHTML = "";
+            for (i=0;i<list.length;i++){
+            var tr = document.createElement("tr");
+            var td1 = document.createElement("td");
+            var td2 = document.createElement("td");
+                    
+            var a = document.createElement("a");
+            a.setAttribute("href", "javascript:void(0)");
+            a.setAttribute("class","navitem");
+            var text = document.createTextNode(list[i]);
+            a.appendChild(text);
+                    
+            var del = document.createElement("button");
+            del.setAttribute("type", "button");
+            del.setAttribute("class","deletenav");
+            var deltext = document.createTextNode("Delete");
+            del.appendChild(deltext);
+                    
+                    
+            td1.appendChild(a);
+            td2.appendChild(del);
+            tr.appendChild(td1);
+            tr.appendChild(td2);
+            target.appendChild(tr);
+    
+            nav.registerItem();
+            }
+        });
+    },
+    registerItem:function(){
+         var items = document.getElementsByClassName("navitem");
+        for(i=0;i<items.length;i++){
+            var me = items[i];
+            me.onclick = function(me){
+                var filename = me.target.text;
+                nav.loadNavForEdit(filename);
+            }
+        }
+    },
+    loadNavForEdit:function(fn){
+        if (nav.loaded === true && !confirm("Did you save?")){
+                return;
+            } else {
+                var filename = "/resources/nav/"+fn;
+                var xmlhttp = new XMLHttpRequest();
+                xmlhttp.open("GET", filename, true);
+                xmlhttp.send();
+                xmlhttp.onreadystatechange = function(){
+                    if ((xmlhttp.readyState == 4) && (xmlhttp.status == 200)){
+                        document.getElementById('editspace').value =xmlhttp.responseText;
+                        document.getElementById('titlefield').value = fn;
+                        document.getElementById('titlefield').disabled = true;
+                        nav.loaded = true;
+                    }else{
+                    }
+                }
+            }
+    },
+    save:function(){
+        var xmlhttp = new XMLHttpRequest();
+        xmlhttp.open("POST", "/auth/savehfcssfile", true);
+        var fn = {"doctype":"nav","content":document.getElementById("editspace").value, "url":document.getElementById('titlefield').value};
+        var m = JSON.stringify(fn);
+        xmlhttp.setRequestHeader("Content-Type", "application/json");
+        xmlhttp.send(m);
+        xmlhttp.onreadystatechange = function(){
+            if ((xmlhttp.readyState == 4) && (xmlhttp.status == 200)){
+                alert(xmlhttp.responseText)
+            }else if ((xmlhttp.readyState == 4) && (xmlhttp.status != 200)){
+                alert('Error saving the nav file');
+            }
+        } 
+    },
+    new:function(){
+        if (nav.loaded === true && !confirm("Did you save?")){
+                return;
+            } else {
+                document.getElementById('editspace').value = "";
+                document.getElementById('titlefield').value = "";
+                document.getElementById('titlefield').disabled = false;
+            }
+    }
+}
+//
+//
+//
+//
+//****************************settings functions***********************
+//
+//
+//
+var settings = {
+    init:function(){
+        var filename = "/settings.js";
+        var xmlhttp = new XMLHttpRequest();
+        xmlhttp.open("GET", filename, true);
+        xmlhttp.send();
+        xmlhttp.onreadystatechange = function(){
+            if ((xmlhttp.readyState == 4) && (xmlhttp.status == 200)){
+                document.getElementById('editspace').value =xmlhttp.responseText;
+                document.getElementById('titlefield').value = filename;
+                document.getElementById('titlefield').disabled = true;
+                css.loaded = true;
+            }else{
+            }
+        }
+    },
+    save:function(){
+        var xmlhttp = new XMLHttpRequest();
+        xmlhttp.open("POST", "/auth/savehfcssfile", true);
+        var fn = {"doctype":"settings","content":document.getElementById("editspace").value, "url":document.getElementById('titlefield').value};
+        var m = JSON.stringify(fn);
+        xmlhttp.setRequestHeader("Content-Type", "application/json");
+        xmlhttp.send(m);
+        xmlhttp.onreadystatechange = function(){
+            if ((xmlhttp.readyState == 4) && (xmlhttp.status == 200)){
+                alert(xmlhttp.responseText)
+            }else if ((xmlhttp.readyState == 4) && (xmlhttp.status != 200)){
+                alert('Error saving the settings file');
+            }
+        } 
+    }
 }
