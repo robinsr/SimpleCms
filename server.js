@@ -5,7 +5,8 @@ var path = require('path')
   , util = require('util')
   , UglifyJS = require("uglify-js")
   , cmspass = require('./auth/cmspass') 
-  , errorpages = require('./errorpages'); // 404 pages stored in strings
+  , errorpages = require('./errorpages')    // 404 pages stored in strings
+  , settings = require('./settings');       // defaults, etc.
 
 
 function serve(req,res){
@@ -20,14 +21,14 @@ function serve(req,res){
     var m = p.exec(req.url);
     
     if (m){
-        console.log('regex returned a value'); // ie the request url is not blank
+        //console.log('regex returned a value'); // ie the request url is not blank
         if ((m[0] == "/auth/")||(m[0] == "/auth")){  
-            console.log("sending to auth check");   // match for '/auth'. stop serving files and send to 
+            //console.log("sending to auth check");   // match for '/auth'. stop serving files and send to 
             authcheck(req,res);                     // auth check to check credentials
             return;
         } else {
  
-        console.log('no regex value');  // ie, the index page
+        //console.log('no regex value');  // ie, the index page
 
         var extname = path.extname(req.url); 
         console.log('extname is '+extname);
@@ -39,14 +40,14 @@ function serve(req,res){
 
             var jsondoc = "./jsondocs"+req.url+'.json'; // checks to see if there is a corresponding artcle
                                                         // in the jsondocs directory    
-            console.log('searching for '+jsondoc)
+            //console.log('searching for '+jsondoc)
             fs.exists(jsondoc, function(ex){
                 fs.readFile(jsondoc, function(error, content){
                     if (error){
-                            console.log('not found, redirecting');  // if not then 404
+                            //console.log('not found, redirecting');  // if not then 404
                         sendTo404Page(res,req);
                         } else {
-                        console.log('page found, starting compiler'); // if yes then compile the page
+                        //console.log('page found, starting compiler'); // if yes then compile the page
                         var json = JSON.parse(content);
                         compilePageParts(json, res);
                         return;
@@ -61,10 +62,10 @@ function serve(req,res){
         fs.exists(jsondoc, function(ex){
                 fs.readFile(jsondoc, function(error, content){
                     if (error){
-                            console.log('not found, redirecting');
+                            //console.log('not found, redirecting');
                         sendTo404Page(res,req);
                         } else {
-                        console.log('page found, starting compiler');
+                        //console.log('page found, starting compiler');
                         var json = JSON.parse(content);
                         compilePageParts(json, res);
                         return;
@@ -74,69 +75,135 @@ function serve(req,res){
     }
 }
 function compilePageParts(a,res){  // compile all the parts of the page and send out
-    var page = "";
-    complileReadFile('header',a.header[0].file,function(b){     // compileReadFile reads files on disk and 
-        page += b;                                              // returns them in a string
-        complileReadFile('css',a.css[0].file,function(b){
-            page += "<style>";
-            page += b;
-            page += "</style>";
-            getHTML(a,function(b){
-                page +=b;
-                complileReadFile('footer',a.footer[0].file,function(b){  
-                    page += b;
-                    res.writeHead(200, { 'Content-Type': "text/html" });    // after page is complete
-                        res.end(page, 'utf-8');                             // send it back
 
-                })
-            })
-        })
-    })
+    var page = "";
+    complileReadFile('header',a,function(b){     // compileReadFile reads files on disk and 
+        page += b;                                              // returns them in a string
+        complileCssLink(a,function(b){
+            page += b;
+            compileTitle(a,function(b){
+                page += b;
+                compileHeaderTags(a,function(b){
+                    page += b;
+                    complileReadFile('nav',a,function(b){
+                        page += b;
+                        compilePageTitle(a,function(b){
+                            page += b;
+                            getHTML(a,function(b){
+                                page +=b;
+                                complileReadFile('footer',a,function(b){  
+                                    page += b;
+                                    res.writeHead(200, { 'Content-Type': "text/html" });    // after page is complete
+                                    res.end(page, 'utf-8');
+                                });
+                            });  
+                        });                           // send it back
+                    });
+                });
+            });
+        });
+    });
 }
-function getHeader(a,cb){
-    console.log(a);
-    var b = 'next'
+function complileCssLink(a,cb){
+    var b ="";
+    for(i=0;i<a.css.length;i++){
+        b += "<link rel='stylesheet' type='text/css' href='./resources/CSS/";
+        b += a.css[i].file;
+        b += "'> \n";
+    }
     cb(b);
 }
-function getCSS(a,cb){
-    console.log(a);
-    var b = 'thing'
+function compileHeaderTags(a,cb){
+    var b = '';
+    if (a.headertags){
+    b = a.headertags + "</head><body>";
+    } else {
+    b = "</head><body>";
+    }
+    cb(b);
+}
+function compilePageTitle(a,cb){
+    var b = '';
+    if (a.title){
+        b += settings.htmlprepagetitle;
+        b += a.title;
+        b += settings.htmlpostpagetitle;
+    } else {
+        b += settings.htmlprepagetitle;
+        b += settings.titledefault;
+        b += settings.htmlpostpagetitle;
+    }
     cb(b);
 }
 function getHTML(a,cb){
     data = a.html;
     cb(data);
 }
-function combine(){
-    console.log("do")
-;}
+function compileTitle(a,cb){
+    if (a.title){
+    var data = '<title>'+a.title+'</title>\n';
+    cb(data);
+    } else {
+    var data = '<title>'+settings.titledefault+'</title>\n';
+    cb(data);
+    }
+}
+function complileReadFile(type, a, cb){
 
-function complileReadFile(type, filename, cb){
-    console.log('compiler asking for '+filename);
-    var filePath = null
-
+    var filePath = null;
+    var obj = null;
     switch(type){
         case 'header':
-            filePath = "./resources/headers/"+filename;
+            filePath = './resources/headers/';
+            obj = a.header;
             break;
         case 'footer':
-            filePath = "./resources/footers/"+filename;
+            filePath = './resources/footers/';
+            obj = a.footer;
             break;
-        case 'css':
-            filePath = "./resources/CSS/"+filename;
+        case 'nav':
+            filePath = './resources/nav/';
+            str = settings.navdefault;
+            break;
     }
-    fs.exists(filePath, function(ex){
-        fs.readFile(filePath, function(err,c){
-            if (err){
-                console.log('cant read '+filePath);
-            } else {
-                var data = c.toString();
-                //console.log(data);
-                cb(data);
-                return;
-            }
-        });
-    });
+    if (obj){
+        for(i=0;i<obj.length;i++){
+
+            var fileName = filePath + obj[i].file;
+            console.log('compiler asking for '+fileName);
+            fs.exists(fileName, function(ex){
+                fs.readFile(fileName, function(err,c){
+                    if (err){
+                        console.log('cant read '+fileName);
+                    } else {
+                        var data = c.toString();
+                        //console.log(data);
+                        cb(data);
+                        return;
+                    }
+                });
+            });
+        }
+    }else if(str){
+        var fileName = filePath + str;
+            console.log('compiler asking for '+fileName);
+            fs.exists(fileName, function(ex){
+                fs.readFile(fileName, function(err,c){
+                    if (err){
+                        console.log('cant read '+fileName);
+                    } else {
+                        var data = c.toString();
+                        //console.log(data);
+                        cb(data);
+                        return;
+                    }
+                });
+            });
+    }else{
+        console.log('theres no '+type+'?');
+        var b = '\n';
+        cb(b);
+    }
 }
 function sendTo404Page(res,req){  // handles compile 404, file 404 is handled elsewhere 
     res.statusCode = 200;  
@@ -212,7 +279,11 @@ function handler (req, res){  // normal file handler and sorts out api calls com
         dirname = "./resources/footers";
         filetype = ".html";
         returnfiles(dirname, filetype, res)
-    } else if (req.url != '/auth/csslist' && req.url != '/auth/filelist' && req.url != '/auth/headers' && req.url != '/auth/footers'){
+    } else if (req.url == '/auth/nav'){ // api call
+        dirname = "./resources/nav";
+        filetype = ".html";
+        returnfiles(dirname, filetype, res)
+    } else if (req.url != '/auth/csslist' && req.url != '/auth/filelist' && req.url != '/auth/headers' && req.url != '/auth/footers' && req.url != '/auth/nav'){
       logger.log('info','fetching '+req.url);
       
       var filePath = "."+req.url;
@@ -278,15 +349,17 @@ function handler (req, res){  // normal file handler and sorts out api calls com
     logger.log('info','this is a post');                        // editor into json docs
   
  
-       
+        var savedata = '';
      req.on('data', function(chunk) {
       logger.log('info',"Received body data:");
-      
-      var a = JSON.parse(chunk);
+      savedata += chunk;
+  });
+     req.on('end', function(){
+      var a = JSON.parse(savedata);
         logger.log('info',util.inspect(a));
+
         
         constructhtml(a, function(ret){
-            console.log('callback running');
             
             var fileName = "./jsondocs/"+a.url;
         
@@ -309,9 +382,7 @@ function handler (req, res){  // normal file handler and sorts out api calls com
 
      });
     } else if (req.method == 'POST' && req.url == '/auth/deletefile'){ // deletes a json or css file
-        logger.log('info','delete file going');
         req.on('data', function(chunk) {
-        logger.log('info',"Received body data:");
       
             var a = JSON.parse(chunk);
             logger.log('info',util.inspect(a));
@@ -339,9 +410,13 @@ function handler (req, res){  // normal file handler and sorts out api calls com
             
         });
     } else if (req.method == 'POST' && req.url == '/auth/savehfcssfile'){ // saves a css or header/footer file
+        
+        var savedata = '';
         req.on('data', function(chunk) {
-      
-      var a = JSON.parse(chunk);
+            savedata += chunk;
+        });
+        req.on('end', function(){
+      var a = JSON.parse(savedata);
         console.log(util.inspect(a));
         var fileName = null;
         switch (a.doctype){
@@ -353,6 +428,12 @@ function handler (req, res){  // normal file handler and sorts out api calls com
                 break;
             case 'css':
                 fileName = "./resources/CSS/"+a.url;
+                break;
+            case 'nav':
+                fileName = "./resources/nav/"+a.url;
+                break;
+            case 'settings':
+                fileName = "/settings.js";
                 break;
             
         }
@@ -374,7 +455,7 @@ function handler (req, res){  // normal file handler and sorts out api calls com
 
 function constructhtml(a, callback){    // when saving an article in the editor, this compiles the html
     console.log('construct running');   // that will be served up when the page compiles.
-    var html = "</head><body>";         // this section is specific to how my blog pages are structured
+    var html = "<article>";         // this section is specific to how my blog pages are structured
   for(i=0;i<a.content.length; i++){
     var d = "";
     if (a.content[i].type == 'p'){
@@ -386,16 +467,20 @@ function constructhtml(a, callback){    // when saving an article in the editor,
       d += a.content[i].text;
       d += "</h2>";
     } else if (a.content[i].type == 'pre'){
+        var clean = a.content[i].text;;
+            clean = clean.replace(/\</g,"&lt;");
+            clean = clean.replace(/\>/g,"&gt;");
       d = "</div><div class='codebox'><header>Code</header><pre class='prettyprint linenums'><code>";
-      d += a.content[i].text;
+      d += clean;
       d += "</code></pre></div><div class='content'>";
     }
     html += d;
   }
-  
+  html += '</article>'
   a.html = html;
   logger.log('info',html);
   callback(a);
+
 }
 function returnfiles(d,ft,res){  // returns the list of files requested in the api calls above
     logger.log('info','file search starting in directory '+d);
