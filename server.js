@@ -5,8 +5,10 @@ var path = require('path')
   , util = require('util')
   , UglifyJS = require("uglify-js")
   , cmspass = require('./auth/cmspass') 
-  , errorpages = require('./errorpages')    // 404 pages stored in strings
-  , settings = require('./settings');       // defaults, etc.
+  , errorpages = require('./errorpages');    // 404 pages stored in strings
+
+var settings = [];
+refreshsettings();// defaults, etc.
 
 
 function serve(req,res){
@@ -232,7 +234,7 @@ function authcheck(req, res) {  // authorization based on username, password, & 
                     var creds = plain_auth.split(':'); 
                     var username = creds[0];
                     var password = creds[1];
-                        //logger.log("info","login attempt: user: "+creds[0]+", pass: "+creds[1]+", ip: "+ip_address);
+                        logger.log("info","login attempt: user: "+creds[0]+", pass: "+creds[1]+", ip: "+ip_address);
                     for (i=0;i<cmspass.ip.length;i++){  // validate the ip address, only allowed ips get in
                         allowed = cmspass.ip[i];
                         if (String(ip_address) == cmspass.ip[i]){
@@ -410,7 +412,7 @@ function handler (req, res){  // normal file handler and sorts out api calls com
             
         });
     } else if (req.method == 'POST' && req.url == '/auth/savehfcssfile'){ // saves a css or header/footer file
-        
+        var resetsettings = null;
         var savedata = '';
         req.on('data', function(chunk) {
             savedata += chunk;
@@ -433,7 +435,8 @@ function handler (req, res){  // normal file handler and sorts out api calls com
                 fileName = "./resources/nav/"+a.url;
                 break;
             case 'settings':
-                fileName = "/settings.js";
+                fileName = "./auth/settings.json";
+                resetsettings = true;
                 break;
             
         }
@@ -447,12 +450,25 @@ function handler (req, res){  // normal file handler and sorts out api calls com
                         logger.log('info','file written successfully: '+fileName);
                         res.writeHead(200, { 'Content-Type': 'text/event-stream' });
                         res.end('File Write Success');
+                            if (resetsettings === true){
+                                refreshsettings();
+                            }
                     }
                 });
      });
+     
     }
 }
-
+function refreshsettings(){
+    fs.readFile('./auth/settings.json', function(error, content) {
+        if (error) {
+            logger.log('info','refreshsettings: there was an error readding the settings file!!');
+        } else {           
+            settings = JSON.parse(content);
+            console.log('settings are: '+settings.htmlprepagetitle);
+        }
+    });
+}
 function constructhtml(a, callback){    // when saving an article in the editor, this compiles the html
     console.log('construct running');   // that will be served up when the page compiles.
     var html = "<article>";         // this section is specific to how my blog pages are structured
@@ -467,12 +483,14 @@ function constructhtml(a, callback){    // when saving an article in the editor,
       d += a.content[i].text;
       d += "</h2>";
     } else if (a.content[i].type == 'pre'){
-        var clean = a.content[i].text;;
+        var clean = a.content[i].text;
             clean = clean.replace(/\</g,"&lt;");
             clean = clean.replace(/\>/g,"&gt;");
       d = "</div><div class='codebox'><header>Code</header><pre class='prettyprint linenums'><code>";
       d += clean;
       d += "</code></pre></div><div class='content'>";
+    } else if (a.content[i].type == 'HTML'){
+        d += a.content[i].text;
     }
     html += d;
   }
