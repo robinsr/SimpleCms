@@ -19,6 +19,7 @@ var article = {
         article.loadFootersList();
         article.register();
         article.loadcontrols();
+        article.registerNewHTML();
     },
 
     register: function(){
@@ -295,6 +296,12 @@ loadcontrols:function(){
 		};
 	}
 },
+registerNewHTML:function(){
+    var newmarkup = document.getElementById("htmlnewitem");  
+    newmarkup.onclick = function(){
+        article.createP("HTML");
+    }
+},
 createP:function(e,f){
         // creates a new text section, either paragraph, heading, or preformatted, and 
         // creates some controls on the section.
@@ -327,7 +334,12 @@ createP:function(e,f){
     if(f){
         txtar.value = f;
     }
-	txtar.className = "item inline";
+    if (e == "HTML"){
+        txtar.className = "item inline codeedit";
+    } else {
+        txtar.className = "item inline";
+    }
+    
 	txtar.itemtype = e;
     txtar.setAttribute("cols", "80");
     txtar.setAttribute("rows", "5");
@@ -448,37 +460,12 @@ deletefile:function(m,t){
         }
     }
 },
-	//preview button
-preview:function(){
-	
-	var article = gathertext();
-	var target = document.getElementById("preview");
-	target.innerHTML = "";
-	for (i=0;i<article.length;i++){
-		//var ordern = document.createElement('p');
-		//var order = document.createTextNode("order: "+e[i].order);
-		//ordern.appendChild(order)
-		//target.appendChild(ordern);
-
-		pview=document.createElement(article[i].type);
-		var para =document.createTextNode(article[i].text)
-		pview.appendChild(para)
-		//pview.innerHTML(article[i].text);
-		
-
-		target.appendChild(pview);
-
-	}
-},
 gathertext:function(){
 	var d = [];
 		//finds all the input for the new article and prepares the content section of the json doc for sending to the server
 	var items = document.getElementsByClassName("item");
 		for (i=0;i<items.length;i++){
-            var clean = items[i].value;
-                clean = clean.replace(/\</g,"&lt;");
-                clean = clean.replace(/\>/g,"&gt;");
-			d.push({text:clean,type:items[i].previousSibling.innerHTML,order:i});
+			d.push({text:items[i].value,type:items[i].previousSibling.innerHTML,order:i});
 		}
 	return d;
 },
@@ -546,6 +533,28 @@ gatherthings:function(c){
                     console.log("Error in Connection");
                 }
             }
+        }
+    },
+        //preview button
+    preview:function(){
+        
+        var tex = article.gathertext();
+        var target = document.getElementById("preview");
+        target.innerHTML = "";
+        for (i=0;i<tex.length;i++){
+            //var ordern = document.createElement('p');
+            //var order = document.createTextNode("order: "+e[i].order);
+            //ordern.appendChild(order)
+            //target.appendChild(ordern);
+    
+            pview=document.createElement(tex[i].type);
+            var para =document.createTextNode(tex[i].text)
+            pview.appendChild(para)
+            //pview.innerHTML(tex[i].text);
+            
+    
+            target.appendChild(pview);
+    
         }
     }
 }
@@ -944,7 +953,7 @@ var nav = {
 //
 var settings = {
     init:function(){
-        var filename = "/settings.js";
+        var filename = "/auth/settings.json";
         var xmlhttp = new XMLHttpRequest();
         xmlhttp.open("GET", filename, true);
         xmlhttp.send();
