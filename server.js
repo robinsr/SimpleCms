@@ -4,7 +4,6 @@ var path = require('path')
   , app = require('http').createServer(serve)
   , util = require('util')
   , cmspass = require('./auth/cmspass')
-  , multipart = require('multipart')
   , nodeurl = require('url');
 
 var settings = [];
@@ -673,17 +672,11 @@ function upload_files(req,res){
     
     req.on('end', function(){
         logger.log('activity', 'request ended, here is the data '+streamdata)
-        
         var json = JSON.parse(streamdata);
-        
         var base64Image = json.data;
-        
         var imgData = base64Image.replace(/^data:image\/\w+;base64,/, "");
-        
         var decodedImage = new Buffer(imgData, 'base64');
-        
         var decodedImageName = './resources/Images/'+json.filename;
-        
         fs.writeFile(decodedImageName, decodedImage, function(err) {
             logger.log('info', 'error writing '+json.filename+' to file');
         });
