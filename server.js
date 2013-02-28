@@ -25,11 +25,15 @@ function serve(req,res){
                     logger.log('info','+++++++++++++++++++++++++++ AUTH DETECTED +++++++++++++++++++++++++++')
                     authcheck(req,res);                             // auth check to check credentials
                     break;
-                case 'landingpages':
-                    var jsondoc = '.'+req.url+'.json';
+                case 'lp':
+                    var jsondoc = '.'+req.url.replace('lp','landingpages')+'.json';
                     forwardPageHandler(jsondoc, req, res);
                     break;
                 case 'resources':
+                case 'jsondocs':
+                case 'drafts':
+                case 'landingpages':
+                case 'api':
                     handler(req,res);
                     break;
                 default:
@@ -43,7 +47,10 @@ function serve(req,res){
         }
     })
 }
-function compilePageParts(a,res,pview){  // compile all the parts of the page and send out
+function compilePageParts(a,res,pview, fourohfour){  // compile all the parts of the page and send out
+
+    var returcode;
+    fourohfour ? returncode = 404: returncode = 200;
 
     var page = "";
     complileReadFile('header',a,function(b){     // compileReadFile reads files on disk and 
@@ -68,13 +75,13 @@ function compilePageParts(a,res,pview){  // compile all the parts of the page an
                                     page += b;
                                     replaceCurlyTags(page, function(ret){
                                         if (!pview){
-                                            res.writeHead(200, { 'Content-Type': "text/html" });    // after page is complete
+                                            res.writeHead(returncode, { 'Content-Type': "text/html" });    // after page is complete
                                             res.end(ret, 'utf-8');
                                         } else {
                                             fs.writeFile('./auth/preview.html', ret, function(err){
                                                 if (err) {logger.log('info','error making preview');}
                                             });
-                                            res.writeHead(200, { 'Content-Type': "text/html" });    // after page is complete
+                                            res.writeHead(returncode, { 'Content-Type': "text/html" });    // after page is complete
                                             res.end();
                                         }
                                     });
@@ -198,7 +205,8 @@ function sendTo404Page(res,req){  // handles compile 404, file 404 is handled el
             //logger.log('info','page found, starting compiler');
             var json = JSON.parse(content);
             var pview = null;
-            compilePageParts(json, res, pview);
+            var four = true;
+            compilePageParts(json, res, pview, four);
             return;
         }
     });
@@ -256,322 +264,161 @@ function handler (req, res){  // normal file handler and sorts out api calls com
   if (req.method == 'GET') {
       var dirname;
       var filetype;
-      //function to compile list of articles stored in .json docs for editing
-    if (req.url == '/auth/jsondocs' || req.url == '/api/filelist'){  // api call
-        dirname = "./jsondocs";
-        filetype = ".json";
-        returnfiles(dirname, filetype, res);
-    } else if (req.url == '/auth/errorpages'){
-        dirname = './errorpages';
-        filetype = '.json';
-        returnfiles(dirname, filetype, res) 
-    } else if (req.url == '/auth/landingpages'){
-        dirname = './landingpages';
-        filetype = '.json';
-        returnfiles(dirname, filetype, res)
-    } else if (req.url == '/auth/drafts'){
-        dirname = './drafts';
-        filetype = '.json';
-        returnfiles(dirname, filetype, res) 
-    } else if (req.url == '/auth/csslist'){ // api call
-        dirname = "./resources/CSS";
-        filetype = ".css";
-        returnfiles(dirname, filetype, res) 
-    } else if (req.url == '/auth/headers'){ // api call
-        dirname = "./resources/headers";
-        filetype = ".html";
-        returnfiles(dirname, filetype, res)
-    } else if (req.url == '/auth/footers'){ // api call
-        dirname = "./resources/footers";
-        filetype = ".html";
-        returnfiles(dirname, filetype, res)
-    } else if (req.url == '/auth/nav'){ // api call
-        dirname = "./resources/nav";
-        filetype = ".html";
-        returnfiles(dirname, filetype, res)
-    } else if (req.url == '/auth/message'){
-        viewLog('./message.log', settings.MessageLogLines.value,req,res);
-        return;
-    } else if (req.url == '/auth/activity'){
-        viewLog('./activity.log', settings.MessageLogLines.value,req,res);
-        return;
-    } else if (req.url == '/auth/imagelibrary'){
-        dirname = "./resources/Images";
-        filetype = ".jpg";
-        returnfiles(dirname, filetype, res)
-    } else if (req.url != '/auth/csslist' && req.url != '/auth/filelist' && req.url != '/auth/headers' && req.url != '/auth/footers' && req.url != '/auth/nav' && req.url != '/auth/message' && req.url != '/auth/activity' && req.url != '/auth/imagelibrary'){
-      logger.log('info','fetching '+req.url);
       
-      var filePath = "."+req.url;
-      
-      if ((filePath == './auth')||(filePath == './auth/')){ // index of sorts; for the CMS dashboard
-          filePath = './auth/cms.html';
-      }
-      
-  
-        var extname = path.extname(filePath);
-        var contentType = 'text/html';
-        switch (extname) {
-            case '.js':
-                contentType = 'text/javascript';
-                break;
-            case '.css':
-                contentType = 'text/css';
-                break;
-            case '.jpg':
-                contentType = 'image/jpeg';
-                break;
-            case '.json':
-                contentType = 'application/json';
-                break;
-            case '.svg':
-                contentType = 'image/svg+xml';
-                break;
-            case '.ttf':
-                contentType = 'application/x-font-ttf';
-                break;
-            case '.otf':
-                contentType = 'application/x-font-opentype';
-                break;
-            case '.woff':
-                contentType = 'application/x-font-woff';
-                break;
-            case '.eot':
-                contentType = 'application/vnd.,s-fontobject';
-                break;
+      switch(req.url){
+		case '/auth/jsondocs':
+		case '/api/filelist':
+			dirname = "./jsondocs";
+			filetype = ".json";
+			returnfiles(dirname, filetype, res);
+			break;
+		case '/auth/errorpages':
+			dirname = './errorpages';
+			filetype = '.json';
+			returnfiles(dirname, filetype, res);
+			break;
+		case '/auth/landingpages':
+			dirname = './landingpages';
+			filetype = '.json';
+			returnfiles(dirname, filetype, res);
+			break;
+		case '/auth/drafts':
+			dirname = './drafts';
+			filetype = '.json';
+			returnfiles(dirname, filetype, res);
+			break;
+		case '/auth/csslist':
+			dirname = "./resources/CSS";
+			filetype = ".css";
+			returnfiles(dirname, filetype, res);
+			break;
+		case '/auth/headers':
+			dirname = "./resources/headers";
+			filetype = ".html";
+			returnfiles(dirname, filetype, res);
+			break;
+		case '/auth/footers':
+			dirname = "./resources/footers";
+			filetype = ".html";
+			returnfiles(dirname, filetype, res);
+			break
+		case '/auth/nav':
+			dirname = "./resources/nav";
+			filetype = ".html";
+			returnfiles(dirname, filetype, res);
+			break;
+		case '/auth/imagelibrary':
+			dirname = "./resources/Images";
+			filetype = ".jpg";
+			returnfiles(dirname, filetype, res);
+			break;
+		case '/auth/message':
+			viewLog('./message.log', settings.MessageLogLines.value,req,res);
+			break;
+		case '/auth/activity':
+			viewLog('./activity.log', settings.MessageLogLines.value,req,res);
+			break;
+		default: 
+			staticFiles(req,res);
+			break;
+		}
 
-        }
         
-        //if (extname == '.js'){
-         //   logger.log('info',filePath);
-         //   content = UglifyJS.minify(filePath);
-        //}
+    } else {								// req is a POST (api)
+		switch (req.url){
+			case '/auth/savedata':
+				saveData(req,res);
+				break;
+			case '/auth/deletefile':
+				deleteFile(req,res);
+				break;
+			case '/auth/savehfcssfile':
+				saveHfCssFile(req,res);
+				break;
+			case '/auth/quickpreview':
+				quickPreview(req,res);
+				break;
+			case '/auth/imageloader':
+				upload_files(req, res);
+				break;
+			case '/auth/compileIndex':
+				compileIndex(req,res);
+				break;
+			default:
+				sendTo404Page(req,res);
+		}
+	}
+}
 
-        if (filePath == "./server.js"){  // do not serve up the server source, big no no. 
-            res.writeHead(200, { 'Content-Type': 'text/plain'});
-            res.end("__ what happened? 404"); // instead pretend it doesn't exist
-            return;
-        }
-        
-        fs.exists(filePath, function(exists) {  // standard file server
-     
-            if (exists) {
-                fs.readFile(filePath, function(error, content) {
-                    if (error) {
-                        res.writeHead(500);
-                        res.end();
-                         logger.log('info','warn','there was an error in serving up a file');
-                    }
-                    else {
-                        
-                        res.writeHead(200, { 'Content-Type': contentType });
-                        res.end(content, 'utf-8');
-                    }
-                });
-            }
-            else {
-                res.writeHead(404);
-                res.end('what happened? 404');
-            }
-        });
-        
+function staticFiles(req,res){
+    logger.log('info','fetching '+req.url);
+      
+    var filePath = "."+req.url;
+      
+    if ((filePath == './auth')||(filePath == './auth/')){ // index of sorts; for the CMS dashboard
+        filePath = './auth/cms.html';
     }
-  } 
+      
   
-  if (req.method == 'POST' && req.url == '/auth/savedata') {    // saves the data from the text 
-    logger.log('info','this is a post');                        // editor into json docs
-  
-    var savedata = '';
-    req.on('data', function(chunk) {
-        logger.log('info',"Received body data:");
-        savedata += chunk;
+    var extname = path.extname(filePath);
+    var contentType = 'text/html';
+    switch (extname) {
+        case '.js':
+            contentType = 'text/javascript';
+            break;
+        case '.css':
+            contentType = 'text/css';
+            break;
+        case '.jpg':
+            contentType = 'image/jpeg';
+            break;
+        case '.json':
+            contentType = 'application/json';
+            break;
+        case '.svg':
+            contentType = 'image/svg+xml';
+            break;
+        case '.ttf':
+            contentType = 'application/x-font-ttf';
+            break;
+        case '.otf':
+            contentType = 'application/x-font-opentype';
+            break;
+        case '.woff':
+            contentType = 'application/x-font-woff';
+            break;
+        case '.eot':
+            contentType = 'application/vnd.,s-fontobject';
+            break;
+    }
+
+
+    if (filePath == "./server.js"){  // do not serve up the server source, big no no. 
+        res.writeHead(404, { 'Content-Type': 'text/plain'});
+        res.end("what happened? 404"); // instead pretend it doesn't exist
+        return;
+    }
+        
+    fs.exists(filePath, function(exists) {  // standard file server
+        if (exists) {
+            fs.readFile(filePath, function(error, content) {
+                if (error) {
+                    res.writeHead(500);
+                    res.end();
+                     logger.log('info','warn','there was an error in serving up a file');
+                }
+                else {
+                    
+                    res.writeHead(200, { 'Content-Type': contentType });
+                    res.end(content, 'utf-8');
+                }
+            });
+        }
+        else {
+            res.writeHead(404);
+            res.end('what happened? 404');
+        }
     });
-
-    req.on('end', function(){
-        var a = JSON.parse(savedata);
-        logger.log('info',util.inspect(a));
-
-        constructhtml(a, function(ret){ 
-            if (ret.destination == 'jsondocs' || ret.destination == 'drafts'){
-                if (ret.display === true){
-                    var resText = '';
-                    var liveFileName = "./jsondocs/"+ret.url;
-                    var draftFileName = './drafts/'+ret.url;
-                    var jsonstring = JSON.stringify(ret);
-                    saveDoc(liveFileName,jsonstring, function(code){
-                        if(code == 'success'){
-                            resText += 'File saved successfully to ./jsondocs\n';
-                            removeDoc(draftFileName, function(code){
-                                if(code == 'success'){
-                                    resText += 'File removed from ./drafts\n';
-                                }else{
-                                    resText += 'Error removing file from ./drafts\n';
-                                }
-                                res.writeHead(200, { 'Content-Type': 'text/event-stream' });                        
-                                res.end(resText);
-                            });
-                        }else{
-                            resText += 'Error saving file to ./jsondocs\n';
-                            res.writeHead(200, { 'Content-Type': 'text/event-stream' });                        
-                            res.end(resText);
-                        }
-                    });          
-                } else {
-                    var resText = '';
-                    var liveFileName = "./jsondocs/"+ret.url;
-                    var draftFileName = './drafts/'+ret.url;
-                    var jsonstring = JSON.stringify(ret);
-                    saveDoc(draftFileName,jsonstring, function(code){
-                        if(code == 'success'){
-                            resText += 'File saved successfully to ./drafts\n';
-                            removeDoc(liveFileName, function(code){
-                                if(code == 'success'){
-                                    resText += 'File saved removed from ./jsondocs\n';
-                                    res.writeHead(200, { 'Content-Type': 'text/event-stream' });                        
-                                    res.end(resText);
-                                }else{
-                                    resText += 'Error removing file from ./jsondocs\n';
-                                    res.writeHead(200, { 'Content-Type': 'text/event-stream' });                        
-                                    res.end(resText);
-                                }
-                            });
-                        }else{
-                            resText += 'Error saving file to ./drafts\nArticle might still be live';
-                                res.writeHead(200, { 'Content-Type': 'text/event-stream' });                        
-                                res.end(resText);
-                        }
-                    });
-                }
-            } else if (ret.destination == 'errorpages' || ret.destination == 'landingpages'){
-                var resText = '';
-                var FileName = './'+ret.destination+'/'+ret.url;
-                var jsonstring = JSON.stringify(ret);
-                saveDoc(FileName,jsonstring, function(code){
-                    if(code == 'success'){
-                        resText += 'File saved successfully to '+ret.destination+'\n';
-                    }else{
-                        resText += 'Error saving  to '+ret.destination+'\n';
-                    }
-                    res.writeHead(200, { 'Content-Type': 'text/event-stream' });                        
-                    res.end(resText);
-                });
-            } 
-        });
-    }); 
-    } else if (req.method == 'POST' && req.url == '/auth/deletefile'){ // deletes a json or css file
-        req.on('data', function(chunk) {
-      
-            var a = JSON.parse(chunk);
-            logger.log('info',util.inspect(a));
-            
-            var path;
-        
-            switch (a.type){
-                case 'jsondocs':
-                    path = "./jsondocs/"+a.file;       
-                    break;
-                case 'drafts':
-                    path = "./drafts/"+a.file;
-                    break;
-                case 'errorpages':
-                    path = "./errorpages/"+a.file;
-                    break;
-                case 'landingpages':
-                    path = "./landingpages/"+a.file;
-                    break;
-                case 'css':
-                    path = "./resources/CSS/"+a.file;
-                    break;
-            }
-            
-            fs.unlink(path, function(err){
-                if (err) {
-                    res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                    res.end('There was a problem deleting the file'); 
-                } else {
-                    logger.log('info',"Deleted "+path);
-                    res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                    res.end('Delete Success');
-                }
-            });
-            
-        });
-    } else if (req.method == 'POST' && req.url == '/auth/savehfcssfile'){ // saves a css or header/footer file
-        var resetsettings = null;
-        var savedata = '';
-        req.on('data', function(chunk) {
-            savedata += chunk;
-        });
-        req.on('end', function(){
-        var a = JSON.parse(savedata);
-        logger.log('info',util.inspect(a));
-        var fileName = null;
-        switch (a.doctype){
-            case 'header':
-                fileName = "./resources/headers/"+a.url;
-                break;
-            case 'footer':
-                fileName = "./resources/footers/"+a.url;
-                break;
-            case 'css':
-                fileName = "./resources/CSS/"+a.url;
-                break;
-            case 'nav':
-                fileName = "./resources/nav/"+a.url;
-                break;
-            case 'settings':
-                fileName = "./auth/settings.json";
-                resetsettings = true;
-                break;
-            
-        }
-            
-            fs.writeFile(fileName, a.content, function(err){
-                    if (err){
-                        logger.log('info','error writing to file '+err);
-                        res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                        res.end('There was a problem saving');
-                    } else {
-                        logger.log('info','file written successfully: '+fileName);
-                        res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                        res.end('File Write Success');
-                        if (resetsettings === true){
-                            refreshsettings();
-                        }
-                    }
-                });
-     });
-     
-    } else if (req.method == 'POST' && req.url == '/auth/quickpreview'){
-        var savedata = '';
-        req.on('data', function(chunk) {
-            savedata += chunk;
-        });
-        req.on('end', function(){
-            var a = JSON.parse(savedata);
-            constructhtml(a, function(ret){
-                var pview = true;
-                compilePageParts(ret,res, pview);
-            });
-        });
-    } else if (req.method == 'POST' && req.url == '/auth/compileIndex'){
-        compileIndex(function(ret){
-            res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-            res.end(ret);
-        });
-    } else if (req.method == 'POST' && req.url == '/auth/searchIndex'){
-         var data = '';
-        req.on('data', function(chunk) {
-            data += chunk;
-        });
-        req.on('end', function(){
-            searchIndex(data, function(){
-
-            });
-        });
-    } else if (req.method == 'POST' && req.url == '/auth/imageloader'){
-        upload_files(req, res);
-    }
 }
 function refreshsettings(){
     fs.readFile('./auth/settings.json', function(error, content) {
@@ -817,18 +664,6 @@ function compileIndex(cb){
     }
     myLoop1();       
 }
-function searchIndex(query,cb){
-    console.log('searching for '+query);
-    fs.readFile("./contentindex.json", 'utf-8', function(err,c){
-        if (err){
-            logger.log('info','error reading contentindex');
-            cb('queryfail');
-        } else {
-            var indexobj = JSON.parse(c);
-            console.log(indexobj[0].content.url);
-        }
-    })
-}
 function upload_files(req,res){
     var streamdata = '';
     
@@ -854,6 +689,186 @@ function upload_files(req,res){
         });
     });
 }
+
+function saveData(req, res){    // saves the data from the text 
+    logger.log('info','this is a post');                        // editor into json docs
+  
+    var savedata = '';
+    req.on('data', function(chunk) {
+        logger.log('info',"Received body data:");
+        savedata += chunk;
+    });
+
+    req.on('end', function(){
+        var a = JSON.parse(savedata);
+        logger.log('info',util.inspect(a));
+
+        constructhtml(a, function(ret){ 
+            if (ret.destination == 'jsondocs' || ret.destination == 'drafts'){
+                if (ret.display === true){
+                    var resText = '';
+                    var liveFileName = "./jsondocs/"+ret.url;
+                    var draftFileName = './drafts/'+ret.url;
+                    var jsonstring = JSON.stringify(ret);
+                    saveDoc(liveFileName,jsonstring, function(code){
+                        if(code == 'success'){
+                            resText += 'File saved successfully to ./jsondocs\n';
+                            removeDoc(draftFileName, function(code){
+                                if(code == 'success'){
+                                    resText += 'File removed from ./drafts\n';
+                                }else{
+                                    resText += 'Error removing file from ./drafts\n';
+                                }
+                                res.writeHead(200, { 'Content-Type': 'text/event-stream' });                        
+                                res.end(resText);
+                            });
+                        }else{
+                            resText += 'Error saving file to ./jsondocs\n';
+                            res.writeHead(200, { 'Content-Type': 'text/event-stream' });                        
+                            res.end(resText);
+                        }
+                    });          
+                } else {
+                    var resText = '';
+                    var liveFileName = "./jsondocs/"+ret.url;
+                    var draftFileName = './drafts/'+ret.url;
+                    var jsonstring = JSON.stringify(ret);
+                    saveDoc(draftFileName,jsonstring, function(code){
+                        if(code == 'success'){
+                            resText += 'File saved successfully to ./drafts\n';
+                            removeDoc(liveFileName, function(code){
+                                if(code == 'success'){
+                                    resText += 'File saved removed from ./jsondocs\n';
+                                    res.writeHead(200, { 'Content-Type': 'text/event-stream' });                        
+                                    res.end(resText);
+                                }else{
+                                    resText += 'Error removing file from ./jsondocs\n';
+                                    res.writeHead(200, { 'Content-Type': 'text/event-stream' });                        
+                                    res.end(resText);
+                                }
+                            });
+                        }else{
+                            resText += 'Error saving file to ./drafts\nArticle might still be live';
+                                res.writeHead(200, { 'Content-Type': 'text/event-stream' });                        
+                                res.end(resText);
+                        }
+                    });
+                }
+            } else if (ret.destination == 'errorpages' || ret.destination == 'landingpages'){
+                var resText = '';
+                var FileName = './'+ret.destination+'/'+ret.url;
+                var jsonstring = JSON.stringify(ret);
+                saveDoc(FileName,jsonstring, function(code){
+                    if(code == 'success'){
+                        resText += 'File saved successfully to '+ret.destination+'\n';
+                    }else{
+                        resText += 'Error saving  to '+ret.destination+'\n';
+                    }
+                    res.writeHead(200, { 'Content-Type': 'text/event-stream' });                        
+                    res.end(resText);
+                });
+            } 
+        });
+    }); 
+}
+function deleteFile(req,res){ // deletes a json or css file
+        req.on('data', function(chunk) {
+      
+            var a = JSON.parse(chunk);
+            logger.log('info',util.inspect(a));
+            
+            var path;
+        
+            switch (a.type){
+                case 'jsondocs':
+                    path = "./jsondocs/"+a.file;       
+                    break;
+                case 'drafts':
+                    path = "./drafts/"+a.file;
+                    break;
+                case 'errorpages':
+                    path = "./errorpages/"+a.file;
+                    break;
+                case 'landingpages':
+                    path = "./landingpages/"+a.file;
+                    break;
+                case 'css':
+                    path = "./resources/CSS/"+a.file;
+                    break;
+            }
+            
+            fs.unlink(path, function(err){
+                if (err) {
+                    res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+                    res.end('There was a problem deleting the file'); 
+                } else {
+                    logger.log('info',"Deleted "+path);
+                    res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+                    res.end('Delete Success');
+            }
+         });
+            
+    });
+}
+function saveHfCssFile(req,res){ // saves a css or header/footer file
+        var resetsettings = null;
+        var savedata = '';
+        req.on('data', function(chunk) {
+            savedata += chunk;
+        });
+        req.on('end', function(){
+        var a = JSON.parse(savedata);
+        logger.log('info',util.inspect(a));
+        var fileName = null;
+        switch (a.doctype){
+            case 'header':
+                fileName = "./resources/headers/"+a.url;
+                break;
+            case 'footer':
+                fileName = "./resources/footers/"+a.url;
+                break;
+            case 'css':
+                fileName = "./resources/CSS/"+a.url;
+                break;
+            case 'nav':
+                fileName = "./resources/nav/"+a.url;
+                break;
+            case 'settings':
+                fileName = "./auth/settings.json";
+                resetsettings = true;
+                break;
+            
+        }
+            
+            fs.writeFile(fileName, a.content, function(err){
+                    if (err){
+                        logger.log('info','error writing to file '+err);
+                        res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+                        res.end('There was a problem saving');
+                    } else {
+                        logger.log('info','file written successfully: '+fileName);
+                        res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+                        res.end('File Write Success');
+                        if (resetsettings === true){
+                            refreshsettings();
+                        }
+                    }
+                });
+     });
+}
+function quickPreview(req,res){
+    var savedata = '';
+    req.on('data', function(chunk) {
+        savedata += chunk;
+    });
+    req.on('end', function(){
+        var a = JSON.parse(savedata);
+        constructhtml(a, function(ret){
+            var pview = true;
+            compile.compilePageParts(ret,res, pview);
+        });
+    });
+} 
 
 
 app.listen(8080);
