@@ -12,9 +12,10 @@
 var article = {
     init : function(){
         article.loadFileList('jsondocs');
-        article.loadCssList();
-        article.loadHeadersList();
-        article.loadFootersList();
+        //article.loadCssList();
+        //article.loadHeadersList();
+        //article.loadFootersList();
+        article.loadlist();
         article.register();
         article.loadcontrols();
         article.registerFileSelect();
@@ -58,97 +59,49 @@ var article = {
             article.registerGetFile();
         });
     },
+loadlist:function(){
+    var listTypes = ["header","footer","css"];
+    var counter = 0;
 
-
-loadCssList:function(){
-    cms_utils.getList("/auth/csslist",function(list){
-    var target = document.getElementById("csslist");
-    target.innerHTML = "";
-    for (i=0;i<list.length;i++){
-        var tr = document.createElement("tr");
-        var td1 = document.createElement("td");
-        var td2 = document.createElement("td");
-                
-        var inp = document.createElement("input");
-        inp.setAttribute("type","checkbox");
-        inp.setAttribute("class", "csscheckbox");
-                
-        var p = document.createElement("span");
-        var text = document.createTextNode(list[i]);
-        p.appendChild(text);
-                
-        var lab = document.createElement("label");
-        lab.appendChild(inp);
-        lab.appendChild(p);
-                
-                
-        td1.appendChild(lab);
-        tr.appendChild(td1);
-        tr.appendChild(td2);
-        target.appendChild(tr);
-    }
-    });
-},
-loadHeadersList:function(){
-    cms_utils.getList("/auth/headers",function(list){
-       var target = document.getElementById("headerlist"); 
-       target.innerHTML = "";
-        for (i=0;i<list.length;i++){
-        var tr = document.createElement("tr");
-        var td1 = document.createElement("td");
-        var td2 = document.createElement("td");
-                
-        var inp = document.createElement("input");
-        inp.setAttribute("type","checkbox");
-        inp.setAttribute("class", "headercheckbox");
-                
-        var p = document.createElement("span");
-        var text = document.createTextNode(list[i]);
-        p.appendChild(text);
-                
-        var lab = document.createElement("label");
-        lab.appendChild(inp);
-        lab.appendChild(p);
-                
-        td1.appendChild(lab);
-        tr.appendChild(td1);
-        tr.appendChild(td2);
-        target.appendChild(tr);
-
-        //registerHeadersDelete();
-    }
-    });
-},
-loadFootersList:function(){
-    cms_utils.getList("/auth/footers",function(list){
-       var target = document.getElementById("footerlist"); 
-       target.innerHTML = "";
-        for (i=0;i<list.length;i++){
-        var tr = document.createElement("tr");
-        var td1 = document.createElement("td");
-        var td2 = document.createElement("td");
-                
-        var inp = document.createElement("input");
-        inp.setAttribute("type","checkbox");
-        inp.setAttribute("class", "footercheckbox");
-                
-        var p = document.createElement("span");
-        var text = document.createTextNode(list[i]);
-        p.appendChild(text);
-                
-        var lab = document.createElement("label");
-        lab.appendChild(inp);
-        lab.appendChild(p);
-                 
-                
-        td1.appendChild(lab);
-        tr.appendChild(td1);
-        tr.appendChild(td2);
-        target.appendChild(tr);
-
-        //registerFootersDelete();
-    }
-    });
+    var use = function(){
+        var url = "/auth/"+listTypes[counter]+"list",
+        target = listTypes[counter]+"list",
+        cls = listTypes[counter]+"checkbox";
+    
+        cms_utils.getList(url, function(list){
+            var t = document.getElementById(target);
+            t.innerHTML = '';
+            for (q=0;q<list.length;q++) {
+            var tr = document.createElement("tr");
+            var td1 = document.createElement("td");
+            var td2 = document.createElement("td");
+                    
+            var inp = document.createElement("input");
+            inp.setAttribute("type","checkbox");
+            inp.setAttribute("class", cls);
+                    
+            var p = document.createElement("span");
+            var text = document.createTextNode(list[q]);
+            p.appendChild(text);
+                    
+            var lab = document.createElement("label");
+            lab.appendChild(inp);
+            lab.appendChild(p);
+                    
+            td1.appendChild(lab);
+            tr.appendChild(td1);
+            tr.appendChild(td2);
+            t.appendChild(tr);
+            }
+        });
+        if (counter > 1){
+            return;
+        } else {
+        counter++;
+        use(); 
+        }
+    } 
+    use();  
 },
 registerGetFile:function(){
         // finds the list of documents that can be edited, triggers getFile 
@@ -717,6 +670,7 @@ gatherthings:function(c){
         }
     },
     handleFileSelect:function(me){
+            // reads image file to send via AJAX and generate preview
         var files = me.target.files; // FileList object
 
             // Loop through the FileList and render image files as thumbnails.
@@ -757,6 +711,7 @@ gatherthings:function(c){
         xmlhttp.send(strng);       
     },
     loadImageLibrary:function(){
+            // loads thumbnail images with click events to load
         var xmlhttp = new XMLHttpRequest();
         xmlhttp.open("GET", '/auth/imagelibrary', true);
         xmlhttp.send();
@@ -775,6 +730,7 @@ gatherthings:function(c){
         }
     },
     loadIndivPic:function(event){
+            // adds the clicked image's src property into an HTML
         var src= event.target.getAttribute("src");
         var newImgTag = '<img src="'+src+'"/>';
         
@@ -783,6 +739,7 @@ gatherthings:function(c){
         target.value = newImgTag;
     },
     hidelibrary:function(event){
+            // toggles isibility of the thumbnail library
         console.log('hiding library')
         target = event.target.parentNode.parentNode;
         
@@ -825,11 +782,7 @@ var cms_utils = {
     },
     hide:function(){
         var body = document.getElementsByTagName("body")[0];
-        if (body.className.match(/(?:^|\s)hide(?!\S)/)){
-            body.className = body.className.replace( /(?:^|\s)hide(?!\S)/g , '' );
-        } else {
-            body.className = 'hide';
-        }
+        body.classList.toggle("hide");
     },
     HTML5toggleClass:function(element,classname){
             element.classList.toggle(classname);
