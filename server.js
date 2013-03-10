@@ -4,7 +4,8 @@ var path = require('path')
   , app = require('http').createServer(serve)
   , util = require('util')
   , cmspass = require('./auth/cmspass')
-  , nodeurl = require('url');
+  , nodeurl = require('url')
+  , events = require('events');
 
 var settings = [];
 refreshsettings();// defaults, etc.
@@ -18,6 +19,7 @@ function serve(req,res){
     }
     
     getPath(req, function(patharray){
+        var jsondoc;
         if (patharray[1]){
             switch (patharray[1]){
                 case 'auth':
@@ -25,7 +27,7 @@ function serve(req,res){
                     authcheck(req,res);                             // auth check to check credentials
                     break;
                 case 'lp':
-                    var jsondoc = '.'+req.url.replace('lp','landingpages')+'.json';
+                    jsondoc = '.'+req.url.replace('lp','landingpages')+'.json';
                     forwardPageHandler(jsondoc, req, res);
                     break;
                 case 'resources':
@@ -36,12 +38,12 @@ function serve(req,res){
                     handler(req,res);
                     break;
                 default:
-                    var jsondoc = "./jsondocs"+req.url+'.json';
+                    jsondoc = "./jsondocs"+req.url+'.json';
                     forwardPageHandler(jsondoc, req, res);
                     break;
             }
         } else {
-            var jsondoc = './jsondocs/index.json';
+            jsondoc = './jsondocs/index.json';
             forwardPageHandler(jsondoc, req, res);
         }
     })
@@ -76,6 +78,7 @@ function compilePageParts(a,res,pview, fourohfour){  // compile all the parts of
                                         if (!pview){
                                             res.writeHead(returncode, { 'Content-Type': "text/html" });    // after page is complete
                                             res.end(ret, 'utf-8');
+                                            logger.log('activity','Serving up article: '+a.title)
                                         } else {
                                             fs.writeFile('./auth/preview.html', ret, function(err){
                                                 if (err) {logger.log('info','error making preview');}
@@ -117,6 +120,11 @@ function compilePageTitle(a,cb){
         b += settings.htmlprepagetitle.value;
         b += a.title;
         b += settings.htmlpostpagetitle.value;
+        if (a.publishDate){
+            b += settings.htmlprepubdate.value;
+            b += a.publishDate;
+            b += settings.htmlpostpubdate.value;
+        }
     } else {
         b += settings.htmlprepagetitle.value;
         b += settings.titledefault.value;
@@ -291,12 +299,12 @@ function handler (req, res){  // normal file handler and sorts out api calls com
 			filetype = ".css";
 			returnfiles(dirname, filetype, res);
 			break;
-		case '/auth/headers':
+		case '/auth/headerlist':
 			dirname = "./resources/headers";
 			filetype = ".html";
 			returnfiles(dirname, filetype, res);
 			break;
-		case '/auth/footers':
+		case '/auth/footerlist':
 			dirname = "./resources/footers";
 			filetype = ".html";
 			returnfiles(dirname, filetype, res);
@@ -327,6 +335,7 @@ function handler (req, res){  // normal file handler and sorts out api calls com
 		switch (req.url){
 			case '/auth/savedata':
 				saveData(req,res);
+                compileArticlesPage();
 				break;
 			case '/auth/deletefile':
 				deleteFile(req,res);
@@ -344,19 +353,19 @@ function handler (req, res){  // normal file handler and sorts out api calls com
 				compileIndex(req,res);
 				break;
 			default:
-				sendTo404Page(req,res);
+				staticFiles(req,res);
+    		break;
 		}
 	}
 }
 
-function staticFiles(req,res){
-    logger.log('info','fetching '+req.url);
-      
+function staticFiles(req,res){    
     var filePath = "."+req.url;
       
     if ((filePath == './auth')||(filePath == './auth/')){ // index of sorts; for the CMS dashboard
         filePath = './auth/cms.html';
     }
+    logger.log('info','fetching '+filePath);
       
   
     var extname = path.extname(filePath);
@@ -429,9 +438,13 @@ function refreshsettings(){
         }
     });
 }
-function constructhtml(a, callback){    // when saving an article in the editor, this compiles the html
-    logger.log('info','construct running');   // that will be served up when the page compiles.
-    var html = "<article>";         // this section is specific to how my blog pages are structured
+function constructhtml(a, cb){   // when saving an article in the editor, this compiles the html
+    if (a.title){               // that will be served up when the page compiles.
+        logger.log('info','construct running on '+a.title);  // this section is specific to how my blog pages are structured
+    }else{
+        logger.log('info', 'construct running, a.title null');
+    }
+    var html = "<article>";         
   for(i=0;i<a.content.length; i++){
     var d = "";
     
@@ -461,11 +474,10 @@ function constructhtml(a, callback){    // when saving an article in the editor,
   }
   html += '</article>'
   a.html = html;
-  logger.log('info',html);
-  callback(a);
+  cb(a);
 
-}
-function returnfiles(d,ft,res){  // returns the list of files requested in the api calls above
+}  
+function returnfiles(d,ft,res,cb){  // returns the list of files requested in the api calls above
     logger.log('info','file search starting in directory '+d);
         fs.readdir(d, function(err, files){
             if (err){
@@ -484,11 +496,16 @@ function returnfiles(d,ft,res){  // returns the list of files requested in the a
                     }
                     
                 }
-                var message = JSON.stringify(text);
-                res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                res.end(message);
-                logger.log('info','files sent');
-                return;
+                if (res){
+                    var message = JSON.stringify(text);
+                    res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+                    res.end(message);
+                    logger.log('info','files sent');
+                    return;
+                } else {
+                    cb(text);
+                }
+                
             }
         });
 }
@@ -517,21 +534,22 @@ function removeDoc(fn,cb){
 }
 function forwardPageHandler(path,req,res){
      // checks to see if there is a corresponding artcle
-                                                        // in the jsondocs directory    
-            logger.log('activity','Serving up article: '+path)
-            fs.exists(path, function(ex){
-                fs.readFile(path, function(error, content){
-                    if (error){
-                            //logger.log('info','not found, redirecting');  // if not then 404
-                        sendTo404Page(res,req);
-                        } else {
-                        //logger.log('info','page found, starting compiler'); // if yes then compile the page
-                        var json = JSON.parse(content);
-                        compilePageParts(json, res);
-                        return;
-                    }
-                });
-            });
+     // in the jsondocs directory
+    fs.exists(path, function(ex){
+        fs.readFile(path, function(error, content){
+            if (error){
+                    //logger.log('info','not found, redirecting');  // if not then 404
+                sendTo404Page(res,req);
+                } else {
+                    //logger.log('info','page found, starting compiler'); // if yes then compile the page
+                var json = JSON.parse(content),
+                    pv = false,
+                    four = false;
+                compilePageParts(json, res,pv,four);
+                return;
+            }
+        });
+    });
 }
 function viewLog(fn, linenums, req,res){
     fs.readFile(fn, function (err, content){
@@ -858,11 +876,75 @@ function quickPreview(req,res){
         var a = JSON.parse(savedata);
         constructhtml(a, function(ret){
             var pview = true;
-            compile.compilePageParts(ret,res, pview);
+            compilePageParts(ret,res, pview);
         });
     });
 } 
-
+function compileArticlesPage(){
+    returnfiles("./jsondocs", ".json", false, function(ret){
+        logger.log('info','compileArticlesPage running');
+        var counter = 0;
+        var html = '<article>';
+        var data = [];
+        
+        (function make(ret){
+            
+            var doc = ret[counter];
+            logger.log('info','make running on '+doc)
+            
+            fs.readFile("./jsondocs/"+doc, function(err,c){
+                if (err) {logger.log('info','error reading '+doc+' function compileArticlesPage')
+                } else {
+                    var contents = JSON.parse(c);
+                    if (contents.category == 'dnd'){
+                        logger.log('info','not reading '+contents.title+' as it is '+contents.category);
+                        counter++
+                        make(ret);
+                    } else if (contents.url){
+                        logger.log('info','reading '+contents.title+' as it is '+contents.category);
+                        html += '<strong>'+contents.publishDate+'</strong><a href="'+contents.url.replace('.json','')+'">'+contents.title+'</a><br />';
+                        html += '<p>'+contents.previewtext;
+                        html += '... <a class="readmore" href="'+contents.url.replace('.json','')+'">[ Read More ]</a></p>';
+                        data.push({title:contents.title,
+                            category:contents.category,
+                            publishDate:contents.publishDate,
+                            previewtext:contents.previewtext,
+                            url:contents.url.replace('.json','')});
+                        if (counter < ret.length-1){
+                            counter++;
+                            make(ret);
+                        } else {
+                            html += '</article>'
+                            logger.log('info','finished reading '+ret.length+' files. HTML is '+html)
+                            fs.readFile("./jsondocs/articles.json", function(err,d){
+                                if (err){logger.log('info','error reading articles, function compileArticlesPage')
+                                } else {
+                                    dcontents = JSON.parse(d);
+                                    dcontents.html = html;
+                                    var write = JSON.stringify(dcontents);
+                                    fs.writeFile("./jsondocs/articles.json",write, function(err){
+                                        if (err){logger.log('info','error writing to articles.json');
+                                        }else {
+                                            write = JSON.stringify(data);
+                                             fs.writeFile("./jsondocs/allarticlesdata.json",write, function(err){
+                                                if (err){logger.log('info','error writing to allarticlesdata.json')
+                                                }else{
+                                                    logger.log('info','finished writing to articles')
+                                                    return;
+                                                }
+                                            });
+                                        }
+                                    });
+                                }
+                            })
+                        }
+                        
+                    }
+                }
+            })
+        })(ret);
+    })
+}
 
 app.listen(8080);
 
