@@ -10,45 +10,76 @@ var path = require('path')
 var settings = [];
 refreshsettings();// defaults, etc.
 
-function serve(req,res){
-    
-    function getPath(req, cb){
-        var parsed = nodeurl.parse(req.url);
-        var patharray = parsed.path.split('/');
-        cb(patharray);
+var mimeType = {
+    '.js': 'text/javascript',
+    '.html': 'text/html',
+    '.css': 'text/css',
+    '.jpg': 'image/jpeg',
+    '.json': 'application/json',
+    '.svg': 'image/svg+xml',
+    '.ttf': 'application/x-font-ttf',
+    '.otf': 'application/x-font-opentype',
+    '.woff': 'application/x-font-woff',
+    '.eot': 'application/vnd.ms-fontobject'
+};
+
+var cache = {};
+
+function checkPageCache(url,cb){
+    logger.log('info','checking cache for '+url);
+    if (cache[url]){
+        logger.log('info','cache found');
+        cb(cache[url])
+    } else {
+        logger.log('info','cache not found');
+        cb(false);
     }
-    
-    getPath(req, function(patharray){
-        var jsondoc;
-        if (patharray[1]){
-            switch (patharray[1]){
-                case 'auth':
-                    logger.log('info','+++++++++++++++++++++++++++ AUTH DETECTED +++++++++++++++++++++++++++')
-                    authcheck(req,res);                             // auth check to check credentials
-                    break;
-                case 'lp':
-                    jsondoc = '.'+req.url.replace('lp','landingpages')+'.json';
-                    forwardPageHandler(jsondoc, req, res);
-                    break;
-                case 'resources':
-                case 'jsondocs':
-                case 'drafts':
-                case 'landingpages':
-                case 'api':
-                    handler(req,res);
-                    break;
-                default:
-                    jsondoc = "./jsondocs"+req.url+'.json';
-                    forwardPageHandler(jsondoc, req, res);
-                    break;
-            }
-        } else {
-            jsondoc = './jsondocs/index.json';
-            forwardPageHandler(jsondoc, req, res);
-        }
-    })
 }
-function compilePageParts(a,res,pview, fourohfour){  // compile all the parts of the page and send out
+
+function serve(req,res){
+    checkPageCache(req.url, function(c){
+        if (c){
+            res.writeHead(returncode, { 'Content-Type': mimeType[path.extname(req.url)]});    // after page is complete
+            res.end(c, 'utf-8');
+            return;
+        } else {
+            var parsed = nodeurl.parse(req.url);
+            var patharray = parsed.path.split('/');
+            var jsondoc;
+            if (patharray[1]){
+                switch (patharray[1]){
+                    case 'auth':
+                        logger.log('info','+++++++++++++++++++++++++++ AUTH DETECTED +++++++++++++++++++++++++++')
+                        authcheck(req,res);                             // auth check to check credentials
+                        break;
+                    case 'lp':
+                        jsondoc = '.'+req.url.replace('lp','landingpages')+'.json';
+                        forwardPageHandler(jsondoc, req, res);
+                        break;
+                    case 'resources':
+                    case 'jsondocs':
+                    case 'drafts':
+                    case 'landingpages':
+                    case 'api':
+                        logger.log('info','sending to handler '+req.url)
+                        handler(req,res);
+                        
+                        break;
+                    default:
+                        jsondoc = "./jsondocs"+req.url+'.json';
+                        forwardPageHandler(jsondoc, req, res);
+                        break;
+                }
+            } else {
+                jsondoc = './jsondocs/index.json';
+                forwardPageHandler(jsondoc, req, res);
+                return;
+            }
+        }
+    });
+}
+
+function compilePageParts(a,res,pview,fourohfour,cacheName){  // compile all the parts of the page and send out
 
     var returcode;
     fourohfour ? returncode = 404: returncode = 200;
@@ -78,7 +109,8 @@ function compilePageParts(a,res,pview, fourohfour){  // compile all the parts of
                                         if (!pview){
                                             res.writeHead(returncode, { 'Content-Type': "text/html" });    // after page is complete
                                             res.end(ret, 'utf-8');
-                                            logger.log('activity','Serving up article: '+a.title)
+                                            cache[cacheName] = ret;
+                                            logger.log('info','writing to cache: '+cacheName)
                                         } else {
                                             fs.writeFile('./auth/preview.html', ret, function(err){
                                                 if (err) {logger.log('info','error making preview');}
@@ -326,6 +358,7 @@ function handler (req, res){  // normal file handler and sorts out api calls com
 			viewLog('./activity.log', settings.MessageLogLines.value,req,res);
 			break;
 		default: 
+            logger.log('info','sending to statifFIles '+req.url);
 			staticFiles(req,res);
 			break;
 		}
@@ -359,72 +392,49 @@ function handler (req, res){  // normal file handler and sorts out api calls com
 	}
 }
 
-function staticFiles(req,res){    
-    var filePath = "."+req.url;
-      
-    if ((filePath == './auth')||(filePath == './auth/')){ // index of sorts; for the CMS dashboard
-        filePath = './auth/cms.html';
-    }
-    logger.log('info','fetching '+filePath);
-      
-  
-    var extname = path.extname(filePath);
-    var contentType = 'text/html';
-    switch (extname) {
-        case '.js':
-            contentType = 'text/javascript';
-            break;
-        case '.css':
-            contentType = 'text/css';
-            break;
-        case '.jpg':
-            contentType = 'image/jpeg';
-            break;
-        case '.json':
-            contentType = 'application/json';
-            break;
-        case '.svg':
-            contentType = 'image/svg+xml';
-            break;
-        case '.ttf':
-            contentType = 'application/x-font-ttf';
-            break;
-        case '.otf':
-            contentType = 'application/x-font-opentype';
-            break;
-        case '.woff':
-            contentType = 'application/x-font-woff';
-            break;
-        case '.eot':
-            contentType = 'application/vnd.,s-fontobject';
-            break;
-    }
-
-
-    if (filePath == "./server.js"){  // do not serve up the server source, big no no. 
-        res.writeHead(404, { 'Content-Type': 'text/plain'});
-        res.end("what happened? 404"); // instead pretend it doesn't exist
-        return;
-    }
+function staticFiles(req,res){
+    checkPageCache(req.url, function(c){
+        if (c){
+            res.writeHead(returncode, { 'Content-Type': mimeType[path.extname(req.url)] });    // after page is complete
+            res.end(c);
+            return;
+        } else {
+            logger.log('info','poopy butt');
+            var filePath = "."+req.url;
+              
+            if ((filePath == './auth')||(filePath == './auth/')){ // index of sorts; for the CMS dashboard
+                filePath = './auth/cms.html';
+            }
+            logger.log('info','fetching '+filePath);
         
-    fs.exists(filePath, function(exists) {  // standard file server
-        if (exists) {
-            fs.readFile(filePath, function(error, content) {
-                if (error) {
-                    res.writeHead(500);
-                    res.end();
-                     logger.log('info','warn','there was an error in serving up a file');
+            if (filePath == "./server.js"){  // do not serve up the server source, big no no. 
+                res.writeHead(404, { 'Content-Type': 'text/plain'});
+                res.end("what happened? 404"); // instead pretend it doesn't exist
+                return;
+            }
+               
+            fs.exists(filePath, function(exists) {  // standard file server
+                if (exists) {
+                    fs.readFile(filePath, function(error, content) {
+                        if (error) {
+                            res.writeHead(500);
+                            res.end();
+                            logger.log('info','there was an error in serving up a file');
+                        }
+                        else {
+                            cache[req.url] = content;
+                            logger.log('info','writing to cache '+req.url);
+                            res.writeHead(200, { 'Content-Type': mimeType[path.extname(filePath)] });
+                            res.end(content);
+                        }
+                    });
                 }
                 else {
-                    
-                    res.writeHead(200, { 'Content-Type': contentType });
-                    res.end(content, 'utf-8');
+                    logger.log('info','404 on '+req.url)
+                    res.writeHead(404);
+                    res.end('what happened? 404');
                 }
             });
-        }
-        else {
-            res.writeHead(404);
-            res.end('what happened? 404');
         }
     });
 }
@@ -545,7 +555,7 @@ function forwardPageHandler(path,req,res){
                 var json = JSON.parse(content),
                     pv = false,
                     four = false;
-                compilePageParts(json, res,pv,four);
+                compilePageParts(json,res,pv,four,req.url);
                 return;
             }
         });
