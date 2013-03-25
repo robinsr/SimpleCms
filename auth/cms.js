@@ -20,6 +20,11 @@ var article = {
         article.loadcontrols();
         article.registerFileSelect();
         article.registerUploadFile();
+        article.registerKeyPress();
+        var today = new Date();
+        today.setHours( today.getHours()+(today.getTimezoneOffset()/-60) );
+        document.querySelector("#publishdate").value = today.toJSON().substring(0,10);
+        cms_utils.setSession();
     },
 
     register: function(){
@@ -201,6 +206,18 @@ getFile:function(doc){
             var hidetitlecheck = document.getElementById('hidetitlecheck');
             a.hidetitle ? hidetitlecheck.checked = true :  hidetitlecheck.checked = false;
             
+            var tags = document.querySelector("#tags");
+            a.tags ? tags.value = a.tags.join(" ") : tags.value = null;
+            
+            var cat = document.querySelector("#category");
+            a.category ? cat.value = a.category : category.value = null;
+            
+            var pview = document.querySelector("#previewtext");
+            a.previewtext ? pview.value = a.previewtext : pview.value = null;
+            
+            var pubdate = document.querySelector("#publishdate");
+            a.publishDate ? pubdate.value = a.publishDate : pubdate.value = null;
+            
             article.loaded = true;
             article.docChange = false;
             article.register();
@@ -209,7 +226,17 @@ getFile:function(doc){
         }
 	}
 },
-
+registerKeyPress:function(){
+    window.onkeydown = function(e){
+        if (e.ctrlKey && e.keyCode === 83){  // ctrl-s saves
+            e.preventDefault();
+            article.save();
+        } else if (e.ctrlKey && e.keyCode === 68){ // ctrl-d previews
+            e.preventDefault();
+            article.preview();
+        }
+    }
+},
 registerChangeTitle:function(){
         // finds the title input and registers click event. changing the title and saving will create a new json doc
     var titletarget = document.getElementById("titlefield");
@@ -533,7 +560,11 @@ gatherthings:function(c){
             header: article.gatherthings('hf'),
             footer: article.gatherthings('ff'),
             headertags: document.getElementById('tagsedit').value,
-            destination: document.getElementById('fileselect').value
+            destination: document.getElementById('fileselect').value,
+            tags: document.querySelector("#tags").value.split(" "),
+            category:document.getElementById("category").value,
+            previewtext: document.querySelector("#previewtext").value,
+            publishDate: document.querySelector("#publishdate").value
     	}
         
         var displaycheck = document.getElementById('displaycheck');
@@ -582,7 +613,11 @@ gatherthings:function(c){
             header: article.gatherthings('hf'),
             footer: article.gatherthings('ff'),
             headertags: document.getElementById('tagsedit').value,
-            destination: document.getElementById('fileselect').value
+            destination: document.getElementById('fileselect').value,
+            tags: document.querySelector("#tags").value.split(" "),
+            category:document.getElementById("category").value,
+            previewtext: document.querySelector("#previewtext").value,
+            publishDate: document.querySelector("#publishdate").value
         }
         
         var hidetitlecheck = document.getElementById('hidetitlecheck');
@@ -629,7 +664,11 @@ gatherthings:function(c){
             header: article.gatherthings('hf'),
             footer: article.gatherthings('ff'),
             headertags: document.getElementById('tagsedit').value,
-            destination: document.getElementById('fileselect').value
+            destination: document.getElementById('fileselect').value,
+            tags: document.querySelector("#tags").value.split(" "),
+            category:document.getElementById("category").value,
+            previewtext: document.querySelector("#previewtext").value,
+            publishDate: document.querySelector("#publishdate").value
         }
         
         var displaycheck = document.getElementById('displaycheck');
@@ -766,6 +805,18 @@ gatherthings:function(c){
 
 
 var cms_utils = {
+    ajaxFunction:function(){
+        var xmlhttp; 
+        try { xmlhttp = new XMLHttpRequest();}
+        catch (e) {
+            try { xmlhttp = new ActiveXObject("Msxml2.XMLHTTP"); }
+            catch (e) {
+                try { xmlhttp = new ActiveXObject("Microsoft.XMLHTTP"); }
+                catch (e) { console.log('no ajax?'); return false; }
+            }
+        }
+        return xmlhttp;
+    },
     getList:function(t,cb){
         var xmlhttp = new XMLHttpRequest();
         xmlhttp.open("GET", t, true);
@@ -867,6 +918,30 @@ var cms_utils = {
                 console.log("Error in Connection. could not search");
             }
         }  
+    },
+    setSession:function(){
+        console.log("running storage key function");
+        var key;
+        if (localStorage){
+            if (localStorage.WATOKEY){
+                console.log('wato key in place '+localStorage.WATOKEY);
+                key = localStorage.WATOKEY;
+            } else {
+                var item = "WATOKEY",
+                key = Math.floor(Math.random()*1000000001);
+                localStorage.setItem(item,key);
+                console.log("setting key "+item,key);
+            }
+
+            var xmlhttp = cms_utils.ajaxFunction();
+            xmlhttp.open("POST", "/api/makeSession", true);
+            xmlhttp.send(key);
+            xmlhttp.onreadystatechange = function(){
+                if ((xmlhttp.readyState == 4) && (xmlhttp.status == 200)){
+                    console.log(xmlhttp.responseText);
+                }
+            }
+        }
     }
 }
 //
@@ -1024,10 +1099,10 @@ var css = {
 var hf = { 
     init:function(){
             console.log('inithf running!')
-        cms_utils.getList("/auth/headers",function(list){
+        cms_utils.getList("/auth/headerlist",function(list){
             hf.loadHeadFootList(list,"headerlist","headeritem");
         });
-        cms_utils.getList("/auth/footers",function(list){
+        cms_utils.getList("/auth/footerlist",function(list){
             hf.loadHeadFootList(list,"footerlist","footeritem");
         });
     },
@@ -1354,3 +1429,10 @@ var settings = {
         }
     }
 }
+window.onbeforeunload =  function(){
+    if (localStorage){
+        localStorage.clear();
+    }
+}
+
+

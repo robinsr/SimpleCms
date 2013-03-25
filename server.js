@@ -10,6 +10,8 @@ var path = require('path')
 var settings = [];
 refreshsettings();// defaults, etc.
 
+var sessionVar = '';
+
 var mimeType = {
     '.js': 'text/javascript',
     '.html': 'text/html',
@@ -26,20 +28,35 @@ var mimeType = {
 var cache = {};
 
 function checkPageCache(url,cb){
-    logger.log('info','checking cache for '+url);
-    if (cache[url]){
-        logger.log('info','cache found');
-        cb(cache[url])
+    if ((settings.pageCache) &&(settings.pageCache.value == 'true')){
+        logger.log('debug','checking cache for '+url);
+        if (cache[url]){
+            logger.log('debug','cache found');
+            cb(cache[url])
+        } else {
+            logger.log('debug','cache not found');
+            cb(false);
+        }
     } else {
-        logger.log('info','cache not found');
+        logger.log('debug', 'reading cache disabled; '+url);
         cb(false);
     }
 }
+function writeToCache(name,val){
+    if (settings.pageCache.value == 'true'){
+        cache[name] = val;
+        logger.log('debug','writing to cache: '+name);
+    } else {
+        logger.log('debug', 'setting cache disbaled; '+name)
+    }
+    
+}
 
 function serve(req,res){
+    logger.log('req',req.url);
     checkPageCache(req.url, function(c){
         if (c){
-            res.writeHead(returncode, { 'Content-Type': mimeType[path.extname(req.url)]});    // after page is complete
+            res.writeHead(200, { 'Content-Type': mimeType[path.extname(req.url)]});    // after page is complete
             res.end(c, 'utf-8');
             return;
         } else {
@@ -49,7 +66,7 @@ function serve(req,res){
             if (patharray[1]){
                 switch (patharray[1]){
                     case 'auth':
-                        logger.log('info','+++++++++++++++++++++++++++ AUTH DETECTED +++++++++++++++++++++++++++')
+                        logger.log('debug','+++++++++++++++++++++++++++ AUTH DETECTED +++++++++++++++++++++++++++')
                         authcheck(req,res);                             // auth check to check credentials
                         break;
                     case 'lp':
@@ -61,7 +78,7 @@ function serve(req,res){
                     case 'drafts':
                     case 'landingpages':
                     case 'api':
-                        logger.log('info','sending to handler '+req.url)
+                        logger.log('debug','sending to handler '+req.url)
                         handler(req,res);
                         
                         break;
@@ -109,11 +126,10 @@ function compilePageParts(a,res,pview,fourohfour,cacheName){  // compile all the
                                         if (!pview){
                                             res.writeHead(returncode, { 'Content-Type': "text/html" });    // after page is complete
                                             res.end(ret, 'utf-8');
-                                            cache[cacheName] = ret;
-                                            logger.log('info','writing to cache: '+cacheName)
+                                            writeToCache(cacheName,ret);
                                         } else {
                                             fs.writeFile('./auth/preview.html', ret, function(err){
-                                                if (err) {logger.log('info','error making preview');}
+                                                if (err) {logger.log('debug','error making preview');}
                                             });
                                             res.writeHead(returncode, { 'Content-Type': "text/html" });    // after page is complete
                                             res.end();
@@ -202,15 +218,15 @@ function complileReadFile(type, a, cb){
     if (obj){
         for(i=0;i<obj.length;i++){
             var fileName = filePath + obj[i].file;
-            logger.log('info','compiler asking for '+fileName);
+            logger.log('debug','compiler asking for '+fileName);
             fs.exists(fileName, function(ex){
                 fs.readFile(fileName, 'utf-8', function(err,c){
                     if (err){
-                        logger.log('info','cant read '+fileName);
+                        logger.log('debug','cant read '+fileName);
                     } else {
                         data = c.toString();
                         cb(data);
-                        //logger.log('info',data);
+                        //logger.log('debug',data);
                     }
                 });
             });
@@ -218,21 +234,21 @@ function complileReadFile(type, a, cb){
         
     }else if(str){
         var fileName = filePath + str;
-            logger.log('info','compiler asking for '+fileName);
+            logger.log('debug','compiler asking for '+fileName);
             fs.exists(fileName, function(ex){
                 fs.readFile(fileName, function(err,c){
                     if (err){
-                        logger.log('info','cant read '+fileName);
+                        logger.log('debug','cant read '+fileName);
                     } else {
                         var data = c.toString();
-                        //logger.log('info',data);
+                        //logger.log('debug',data);
                         cb(data);
                         return;
                     }
                 });
             });
     }else{
-        logger.log('info','theres no '+type+'?');
+        logger.log('debug','theres no '+type+'?');
         var b = '\n';
         cb(b);
     }
@@ -240,8 +256,10 @@ function complileReadFile(type, a, cb){
 function sendTo404Page(res,req){  // handles compile 404, file 404 is handled elsewhere 
     fs.readFile('./jsondocs/fourohfour.json', function(error, content){
         if (error){
-            } else {
-            //logger.log('info','page found, starting compiler');
+            res.writeHead(404, { 'Content-Type': 'text/plain'});
+            res.end("what happened? 404");
+        } else {
+            //logger.log('debug','page found, starting compiler');
             var json = JSON.parse(content);
             var pview = null;
             var four = true;
@@ -269,11 +287,11 @@ function authcheck(req, res) {  // authorization based on username, password, & 
                     var tmp = auth.split(' ');   
                     var buf = new Buffer(tmp[1], 'base64'); 
                     var plain_auth = buf.toString();       
-                    //logger.log("info","Decoded Authorization ", plain_auth);
+                    //logger.log('debug',"Decoded Authorization ", plain_auth);
                     var creds = plain_auth.split(':'); 
                     var username = creds[0];
                     var password = creds[1];
-                        logger.log("info","login attempt: user: "+creds[0]+", pass: "+creds[1]+", ip: "+ip_address);
+                        logger.log('debug',"login attempt: user: "+creds[0]+", pass: "+creds[1]+", ip: "+ip_address);
                     for (i=0;i<cmspass.ip.length;i++){  // validate the ip address, only allowed ips get in
                         allowed = cmspass.ip[i];
                         if (String(ip_address) == cmspass.ip[i]){
@@ -288,8 +306,8 @@ function authcheck(req, res) {  // authorization based on username, password, & 
                             //res.statusCode = 401; 
                             res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
                             res.statusCode = 403;  
-                            res.end('<html><body>Your location is bad</body></html>');
-                                logger.log("info","Bad Location")
+                            res.end('<html><body>Your location is bad, and you should feel bad</body></html>');
+                                logger.log('debug',"Bad Location")
                     } else {
                             res.statusCode = 401; 
                             res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
@@ -351,14 +369,13 @@ function handler (req, res){  // normal file handler and sorts out api calls com
 			filetype = ".jpg";
 			returnfiles(dirname, filetype, res);
 			break;
-		case '/auth/message':
-			viewLog('./message.log', settings.MessageLogLines.value,req,res);
+		case '/auth/requestslog':
+			viewLog('./logs/requests.log', settings.MessageLogLines.value,req,res);
 			break;
-		case '/auth/activity':
-			viewLog('./activity.log', settings.MessageLogLines.value,req,res);
+		case '/auth/debuglog':
+			viewLog('./logs/debug.log', settings.MessageLogLines.value,req,res);
 			break;
 		default: 
-            logger.log('info','sending to statifFIles '+req.url);
 			staticFiles(req,res);
 			break;
 		}
@@ -369,6 +386,7 @@ function handler (req, res){  // normal file handler and sorts out api calls com
 			case '/auth/savedata':
 				saveData(req,res);
                 compileArticlesPage();
+                clearCache();
 				break;
 			case '/auth/deletefile':
 				deleteFile(req,res);
@@ -385,6 +403,12 @@ function handler (req, res){  // normal file handler and sorts out api calls com
 			case '/auth/compileIndex':
 				compileIndex(req,res);
 				break;
+            case '/api/makeSession':
+                makeSession(req,res);
+                break;
+            case '/api/testSession':
+                testSession(req,res);
+                break;
 			default:
 				staticFiles(req,res);
     		break;
@@ -399,13 +423,9 @@ function staticFiles(req,res){
             res.end(c);
             return;
         } else {
-            logger.log('info','poopy butt');
             var filePath = "."+req.url;
-              
-            if ((filePath == './auth')||(filePath == './auth/')){ // index of sorts; for the CMS dashboard
-                filePath = './auth/cms.html';
-            }
-            logger.log('info','fetching '+filePath);
+
+            logger.log('debug','fetching '+filePath);
         
             if (filePath == "./server.js"){  // do not serve up the server source, big no no. 
                 res.writeHead(404, { 'Content-Type': 'text/plain'});
@@ -419,18 +439,23 @@ function staticFiles(req,res){
                         if (error) {
                             res.writeHead(500);
                             res.end();
-                            logger.log('info','there was an error in serving up a file');
+                            logger.log('debug','there was an error in serving up a file');
                         }
                         else {
-                            cache[req.url] = content;
-                            logger.log('info','writing to cache '+req.url);
+                            if (path.extname(filePath) == ".html"){
+                                replaceCurlyTags(content, function(ret){
+                                content = ret;
+                                });
+                            }
+                            writeToCache(req.url,content);
                             res.writeHead(200, { 'Content-Type': mimeType[path.extname(filePath)] });
                             res.end(content);
+                            
                         }
                     });
                 }
                 else {
-                    logger.log('info','404 on '+req.url)
+                    logger.log('debug','404 on '+req.url)
                     res.writeHead(404);
                     res.end('what happened? 404');
                 }
@@ -441,18 +466,18 @@ function staticFiles(req,res){
 function refreshsettings(){
     fs.readFile('./auth/settings.json', function(error, content) {
         if (error) {
-            logger.log('info','refreshsettings: there was an error readding the settings file!!');
+            logger.log('debug','refreshsettings: there was an error readding the settings file!!');
         } else {           
             settings = JSON.parse(content);
-            logger.log('info','settings are: '+settings.htmlprepagetitle.value);
+            logger.log('debug','settings are: '+util.inspect(settings));
         }
     });
 }
 function constructhtml(a, cb){   // when saving an article in the editor, this compiles the html
     if (a.title){               // that will be served up when the page compiles.
-        logger.log('info','construct running on '+a.title);  // this section is specific to how my blog pages are structured
+        logger.log('debug','construct running on '+a.title);  // this section is specific to how my blog pages are structured
     }else{
-        logger.log('info', 'construct running, a.title null');
+        logger.log('debug', 'construct running, a.title null');
     }
     var html = "<article>";         
   for(i=0;i<a.content.length; i++){
@@ -488,15 +513,15 @@ function constructhtml(a, cb){   // when saving an article in the editor, this c
 
 }  
 function returnfiles(d,ft,res,cb){  // returns the list of files requested in the api calls above
-    logger.log('info','file search starting in directory '+d);
+    logger.log('debug','file search starting in directory '+d);
         fs.readdir(d, function(err, files){
             if (err){
-                logger.log('info','error in reading directory');
+                logger.log('debug','error in reading directory');
                 res.writeHead(200, { 'Content-Type': 'text/event-stream' });
                 res.end('There was an error fetching files');
                 return;
             } else {
-                logger.log('info','found '+files.length+' files in '+d);
+                logger.log('debug','found '+files.length+' files in '+d);
                 var text = [];
                 for (i=0;i<files.length;i++){
                     if (path.extname(files[i]) == ft){
@@ -510,7 +535,7 @@ function returnfiles(d,ft,res,cb){  // returns the list of files requested in th
                     var message = JSON.stringify(text);
                     res.writeHead(200, { 'Content-Type': 'text/event-stream' });
                     res.end(message);
-                    logger.log('info','files sent');
+                    logger.log('debug','files sent');
                     return;
                 } else {
                     cb(text);
@@ -531,13 +556,13 @@ function saveDoc(fn,json,cb){
     });
 }
 function removeDoc(fn,cb){
-    logger.log('info','removing '+fn);
+    logger.log('debug','removing '+fn);
     fs.unlink(fn, function(err){
         if (err){
             logger.log('activity','Error unlinking file ('+fn+') Error: '+err);
             cb('fail');
         } else {
-            logger.log('activivty',fn+' unlinked successfully');
+            logger.log('activity',fn+' unlinked successfully');
             cb('success');
         }
     });
@@ -546,25 +571,29 @@ function forwardPageHandler(path,req,res){
      // checks to see if there is a corresponding artcle
      // in the jsondocs directory
     fs.exists(path, function(ex){
-        fs.readFile(path, function(error, content){
-            if (error){
-                    //logger.log('info','not found, redirecting');  // if not then 404
-                sendTo404Page(res,req);
-                } else {
-                    //logger.log('info','page found, starting compiler'); // if yes then compile the page
-                var json = JSON.parse(content),
-                    pv = false,
-                    four = false;
-                compilePageParts(json,res,pv,four,req.url);
-                return;
-            }
-        });
+        if (ex){
+            fs.readFile(path, function(error, content){
+                if (error){
+                        //logger.log('debug','not found, redirecting');  // if not then 404
+                    sendTo404Page(res,req);
+                    } else {
+                        //logger.log('debug','page found, starting compiler'); // if yes then compile the page
+                    var json = JSON.parse(content),
+                        pv = false,
+                        four = false;
+                    compilePageParts(json,res,pv,four,req.url);
+                    return;
+                }
+            });
+        } else {
+            sendTo404Page(res,req);
+        }
     });
 }
 function viewLog(fn, linenums, req,res){
     fs.readFile(fn, function (err, content){
         if (err){
-            logger.log('info', 'Error in viewLog()');
+            logger.log('debug', 'Error in viewLog()');
         } else {
             var result='';
             var contentString = String(content);
@@ -586,6 +615,9 @@ function viewLog(fn, linenums, req,res){
     })
 }
 function replaceCurlyTags(content,cb){
+    if (typeof content != "string") {
+        content = content.toString();
+    }
       var pat = /\{([^}]+)\}\}/g
       var m = null;
 
@@ -706,23 +738,23 @@ function upload_files(req,res){
         var decodedImage = new Buffer(imgData, 'base64');
         var decodedImageName = './resources/Images/'+json.filename;
         fs.writeFile(decodedImageName, decodedImage, function(err) {
-            logger.log('info', 'error writing '+json.filename+' to file');
+            logger.log('debug', 'error writing '+json.filename+' to file');
         });
     });
 }
 
 function saveData(req, res){    // saves the data from the text 
-    logger.log('info','this is a post');                        // editor into json docs
+    logger.log('debug','this is a post');                        // editor into json docs
   
     var savedata = '';
     req.on('data', function(chunk) {
-        logger.log('info',"Received body data:");
+        logger.log('debug',"Received body data:");
         savedata += chunk;
     });
 
     req.on('end', function(){
         var a = JSON.parse(savedata);
-        logger.log('info',util.inspect(a));
+        logger.log('debug',util.inspect(a));
 
         constructhtml(a, function(ret){ 
             if (ret.destination == 'jsondocs' || ret.destination == 'drafts'){
@@ -796,7 +828,7 @@ function deleteFile(req,res){ // deletes a json or css file
         req.on('data', function(chunk) {
       
             var a = JSON.parse(chunk);
-            logger.log('info',util.inspect(a));
+            logger.log('debug',util.inspect(a));
             
             var path;
         
@@ -823,7 +855,7 @@ function deleteFile(req,res){ // deletes a json or css file
                     res.writeHead(200, { 'Content-Type': 'text/event-stream' });
                     res.end('There was a problem deleting the file'); 
                 } else {
-                    logger.log('info',"Deleted "+path);
+                    logger.log('debug',"Deleted "+path);
                     res.writeHead(200, { 'Content-Type': 'text/event-stream' });
                     res.end('Delete Success');
             }
@@ -839,7 +871,7 @@ function saveHfCssFile(req,res){ // saves a css or header/footer file
         });
         req.on('end', function(){
         var a = JSON.parse(savedata);
-        logger.log('info',util.inspect(a));
+        logger.log('debug',util.inspect(a));
         var fileName = null;
         switch (a.doctype){
             case 'header':
@@ -863,13 +895,13 @@ function saveHfCssFile(req,res){ // saves a css or header/footer file
             
             fs.writeFile(fileName, a.content, function(err){
                     if (err){
-                        logger.log('info','error writing to file '+err);
+                        logger.log('debug','error writing to file '+err);
                         res.writeHead(200, { 'Content-Type': 'text/event-stream' });
                         res.end('There was a problem saving');
                     } else {
-                        logger.log('info','file written successfully: '+fileName);
+                        logger.log('debug','file written successfully: '+fileName);
                         res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                        res.end('File Write Success');
+                        res.end('file written successfully: '+fileName);
                         if (resetsettings === true){
                             refreshsettings();
                         }
@@ -892,7 +924,7 @@ function quickPreview(req,res){
 } 
 function compileArticlesPage(){
     returnfiles("./jsondocs", ".json", false, function(ret){
-        logger.log('info','compileArticlesPage running');
+        logger.log('debug','compileArticlesPage running');
         var counter = 0;
         var html = '<article>';
         var data = [];
@@ -900,18 +932,18 @@ function compileArticlesPage(){
         (function make(ret){
             
             var doc = ret[counter];
-            logger.log('info','make running on '+doc)
+            logger.log('debug','make running on '+doc)
             
             fs.readFile("./jsondocs/"+doc, function(err,c){
-                if (err) {logger.log('info','error reading '+doc+' function compileArticlesPage')
+                if (err) {logger.log('debug','error reading '+doc+' function compileArticlesPage')
                 } else {
                     var contents = JSON.parse(c);
                     if (contents.category == 'dnd'){
-                        logger.log('info','not reading '+contents.title+' as it is '+contents.category);
+                        logger.log('debug','not reading '+contents.title+' as it is '+contents.category);
                         counter++
                         make(ret);
                     } else if (contents.url){
-                        logger.log('info','reading '+contents.title+' as it is '+contents.category);
+                        logger.log('debug','reading '+contents.title+' as it is '+contents.category);
                         html += '<strong>'+contents.publishDate+'</strong><a href="'+contents.url.replace('.json','')+'">'+contents.title+'</a><br />';
                         html += '<p>'+contents.previewtext;
                         html += '... <a class="readmore" href="'+contents.url.replace('.json','')+'">[ Read More ]</a></p>';
@@ -925,21 +957,21 @@ function compileArticlesPage(){
                             make(ret);
                         } else {
                             html += '</article>'
-                            logger.log('info','finished reading '+ret.length+' files. HTML is '+html)
+                            logger.log('debug','finished reading '+ret.length+' files. HTML is '+html)
                             fs.readFile("./jsondocs/articles.json", function(err,d){
-                                if (err){logger.log('info','error reading articles, function compileArticlesPage')
+                                if (err){logger.log('debug','error reading articles, function compileArticlesPage')
                                 } else {
                                     dcontents = JSON.parse(d);
                                     dcontents.html = html;
                                     var write = JSON.stringify(dcontents);
                                     fs.writeFile("./jsondocs/articles.json",write, function(err){
-                                        if (err){logger.log('info','error writing to articles.json');
+                                        if (err){logger.log('debug','error writing to articles.json');
                                         }else {
                                             write = JSON.stringify(data);
                                              fs.writeFile("./jsondocs/allarticlesdata.json",write, function(err){
-                                                if (err){logger.log('info','error writing to allarticlesdata.json')
+                                                if (err){logger.log('debug','error writing to allarticlesdata.json')
                                                 }else{
-                                                    logger.log('info','finished writing to articles')
+                                                    logger.log('debug','finished writing to articles')
                                                     return;
                                                 }
                                             });
@@ -954,6 +986,53 @@ function compileArticlesPage(){
             })
         })(ret);
     })
+}
+function clearCache(){
+    cache = '';
+}
+function testSession(req,res){
+    console.log('testsession')
+    logger.log('debug','test session running')
+    var key = '';
+    var ok = null;
+
+    req.on('data', function(chunk){
+        key += chunk;
+    });
+
+    req.on('end', function(){
+        if (key == sessionVar){
+            logger.log('debug', 'The session key does not fit!')
+            ok = true
+        } else {
+            logger.log('debug', 'Session key match, loading live controls');
+            ok = false
+        }
+
+        if (ok){
+            res.writeHead(200,{ 'Content-Type': 'text/event-stream' });
+            res.end('key fits!')
+        } else {
+            res.writeHead(200,{ 'Content-Type': 'text/event-stream' });
+            res.end('key does not fit!')
+        }
+    });
+}
+function makeSession(req,res){
+    console.log("makesession")
+    logger.log('debug', 'make session running')
+    var key = '';
+    var ok = null;
+
+    req.on('data', function(chunk){
+        key += chunk;
+    });
+    req.on('end', function(){
+        logger.log('debug','setting session to '+key)
+        sessionVar = key;
+        res.writeHead(200, {'Content-Type': 'text/event-stream'});
+        res.end('set session var');
+    });
 }
 
 app.listen(8080);
