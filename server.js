@@ -17,13 +17,21 @@ var mimeType = {
     '.html': 'text/html',
     '.css': 'text/css',
     '.jpg': 'image/jpeg',
+    '.png': 'image/png',
     '.json': 'application/json',
     '.svg': 'image/svg+xml',
     '.ttf': 'application/x-font-ttf',
     '.otf': 'application/x-font-opentype',
     '.woff': 'application/x-font-woff',
-    '.eot': 'application/vnd.ms-fontobject'
+    '.eot': 'application/vnd.ms-fontobject',
+    '':'text/html'
 };
+
+var indexes = {
+    '/auth':'/auth/bootstrap/index.html',
+    '/auth/':'/auth/bootstrap/index.html'
+    
+}
 
 var cache = {};
 
@@ -53,10 +61,10 @@ function writeToCache(name,val){
 }
 
 function serve(req,res){
-    logger.log('req',req.url);
+    logger.log('req',req.url+' '+mimeType[path.extname(req.url)]);
     checkPageCache(req.url, function(c){
         if (c){
-            res.writeHead(200, { 'Content-Type': mimeType[path.extname(req.url)]});    // after page is complete
+            res.writeHead(200, { 'Content-Type': mimeType[path.extname(req.url)]});   
             res.end(c, 'utf-8');
             return;
         } else {
@@ -147,7 +155,7 @@ function compilePageParts(a,res,pview,fourohfour,cacheName){  // compile all the
 function complileCssLink(a,cb){
         var b ="";
         for(i=0;i<a.css.length;i++){
-            b += "<link rel='stylesheet' type='text/css' href='/resources/CSS/";
+            b += "<link rel='stylesheet' data-wato='user-style' type='text/css' href='/resources/CSS/";
             b += a.css[i].file;
             b += "'> \n";
         }
@@ -253,7 +261,7 @@ function complileReadFile(type, a, cb){
         cb(b);
     }
 }
-function sendTo404Page(res,req){  // handles compile 404, file 404 is handled elsewhere 
+function sendTo404Page(req,res){  // handles compile 404, file 404 is handled elsewhere 
     fs.readFile('./jsondocs/fourohfour.json', function(error, content){
         if (error){
             res.writeHead(404, { 'Content-Type': 'text/plain'});
@@ -307,7 +315,11 @@ function authcheck(req, res) {  // authorization based on username, password, & 
                             res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
                             res.statusCode = 403;  
                             res.end('<html><body>Your location is bad, and you should feel bad</body></html>');
-                                logger.log('debug',"Bad Location")
+                                logger.log('debug',"Bad Location");
+                    } else if((username == sessionVar) && (ip_addresspass === true)){ // correct sessionVar, user is using live edit tools;
+                            console.log('sessionVar confirmed in authcheck function');
+                            handler(req,res);
+
                     } else {
                             res.statusCode = 401; 
                             res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
@@ -323,7 +335,7 @@ function handler (req, res){  // normal file handler and sorts out api calls com
       var filetype;
       
       switch(req.url){
-		case '/auth/jsondocs':
+    	case '/auth/jsondocs':
 		case '/api/filelist':
 			dirname = "./jsondocs";
 			filetype = ".json";
@@ -403,7 +415,7 @@ function handler (req, res){  // normal file handler and sorts out api calls com
 			case '/auth/compileIndex':
 				compileIndex(req,res);
 				break;
-            case '/api/makeSession':
+            case '/auth/makeSession':
                 makeSession(req,res);
                 break;
             case '/api/testSession':
@@ -417,51 +429,74 @@ function handler (req, res){  // normal file handler and sorts out api calls com
 }
 
 function staticFiles(req,res){
-    checkPageCache(req.url, function(c){
-        if (c){
-            res.writeHead(returncode, { 'Content-Type': mimeType[path.extname(req.url)] });    // after page is complete
-            res.end(c);
-            return;
-        } else {
-            var filePath = "."+req.url;
-
-            logger.log('debug','fetching '+filePath);
-        
-            if (filePath == "./server.js"){  // do not serve up the server source, big no no. 
-                res.writeHead(404, { 'Content-Type': 'text/plain'});
-                res.end("what happened? 404"); // instead pretend it doesn't exist
+    var filePath = "."+req.url;
+    
+    function sendBack(c){
+        writeToCache(req.url,c);
+        res.writeHead(200, { 'Content-Type': mimeType[path.extname(filePath)] });
+        res.end(c);
+        return;
+    }
+    
+    function firstThing(){
+        checkPageCache(req.url, function(c){
+            if (c){
+                sendBack(c);
                 return;
-            }
-               
-            fs.exists(filePath, function(exists) {  // standard file server
-                if (exists) {
-                    fs.readFile(filePath, function(error, content) {
-                        if (error) {
-                            res.writeHead(500);
-                            res.end();
-                            logger.log('debug','there was an error in serving up a file');
-                        }
-                        else {
-                            if (path.extname(filePath) == ".html"){
-                                replaceCurlyTags(content, function(ret){
-                                content = ret;
+            } else {
+                checkIndex(req, function(redirect_url){
+                    filePath = "."+redirect_url;
+                    
+                    logger.log('debug','fetching '+filePath);
+                
+                    if (filePath == "./server.js"){  // do not serve up the server source, big no no. 
+                        sendTo404Page(req,res);  
+                        return;
+                    } else {
+                        fs.exists(filePath, function(exists) {  // standard file server
+                            if (exists) {
+                                fs.readFile(filePath, function(error, content) {
+                                    if (error) {
+                                        sendTo404Page(req,res);
+                                        logger.log('debug','there was an error in serving up a file');
+                                    }
+                                    else {
+                                        if (path.extname(filePath) == ".html"){
+                                            replaceCurlyTags(content.toString(), function(ret){
+                                                logger.log('debug','received response from curly tags')
+                                                sendBack(ret);
+                                                return;
+                                            });
+                                        } else {
+                                            sendBack(content);
+                                            return;
+                                        } 
+                                    }
                                 });
+                            } else {
+                                sendTo404Page(req,res);   
                             }
-                            writeToCache(req.url,content);
-                            res.writeHead(200, { 'Content-Type': mimeType[path.extname(filePath)] });
-                            res.end(content);
-                            
-                        }
-                    });
-                }
-                else {
-                    logger.log('debug','404 on '+req.url)
-                    res.writeHead(404);
-                    res.end('what happened? 404');
-                }
-            });
+                        });
+                    }
+                });
+            }
+        });
+    }
+    firstThing();
+}
+function checkIndex(req,cb){
+    if (indexes[req.url] || indexes[req.url+"/"]){
+        var index_redirect = '';
+        if (indexes[req.url]) {
+            index_redirect = indexes[req.url]
+        } else {
+            index_redirect = indexes[req.url+"/"]
         }
-    });
+        logger.log('debug', 'index worked for '+req.url+". rerirecting to "+index_redirect);
+        cb(index_redirect);
+    } else {
+        cb(req.url)
+    }
 }
 function refreshsettings(){
     fs.readFile('./auth/settings.json', function(error, content) {
@@ -498,7 +533,7 @@ function constructhtml(a, cb){   // when saving an article in the editor, this c
           d += clean;
           d += "</h2>\n\n";
         } else if (a.content[i].type == 'pre'){ 
-          d = "<div class='codebox'><header>Code</header><pre class='prettyprint linenums'><code>";
+          d = "<div class='codebox'><header>Code</header><pre class='prettyprint linenums lang-js'><code>";
           d += clean;
           d += "</code></pre></div>\n\n";
         } else if (a.content[i].type == 'HTML'){
@@ -557,15 +592,22 @@ function saveDoc(fn,json,cb){
 }
 function removeDoc(fn,cb){
     logger.log('debug','removing '+fn);
-    fs.unlink(fn, function(err){
-        if (err){
-            logger.log('activity','Error unlinking file ('+fn+') Error: '+err);
-            cb('fail');
+    fs.exists(fn, function(ex){
+        if (ex){
+            fs.unlink(fn, function(err){
+                if (err){
+                    logger.log('activity','Error unlinking file ('+fn+') Error: '+err);
+                    cb('error');
+                } else {
+                    logger.log('activity',fn+' unlinked successfully');
+                    cb('success');
+                }
+            });
         } else {
-            logger.log('activity',fn+' unlinked successfully');
-            cb('success');
+            cb('exist');
         }
-    });
+    })
+        
 }
 function forwardPageHandler(path,req,res){
      // checks to see if there is a corresponding artcle
@@ -575,7 +617,7 @@ function forwardPageHandler(path,req,res){
             fs.readFile(path, function(error, content){
                 if (error){
                         //logger.log('debug','not found, redirecting');  // if not then 404
-                    sendTo404Page(res,req);
+                    sendTo404Page(req,res);
                     } else {
                         //logger.log('debug','page found, starting compiler'); // if yes then compile the page
                     var json = JSON.parse(content),
@@ -586,7 +628,7 @@ function forwardPageHandler(path,req,res){
                 }
             });
         } else {
-            sendTo404Page(res,req);
+            sendTo404Page(req,res);
         }
     });
 }
@@ -615,25 +657,85 @@ function viewLog(fn, linenums, req,res){
     })
 }
 function replaceCurlyTags(content,cb){
-    if (typeof content != "string") {
-        content = content.toString();
-    }
-      var pat = /\{([^}]+)\}\}/g
-      var m = null;
-
-      var p = new RegExp(pat);
-      while (m = p.exec(content)){
-        var q=null;
-        q = m[0].replace('{{','').replace("}}",'');
-        var strng = String(q);
-        if (settings[strng]){
-            var MyVar = settings[strng].value;
-            content = content.replace(m[0], MyVar)
-        } else {
-            content = content.replace(m[0], strng+' is not defined');
+    var counter = -1;
+    var matchCount = 0;
+    var matches = [];
+    
+    function firstThing(content, cb3){
+        if (typeof content != "string") {
+            content = content.toString();
         }
-      }
-      cb(content);
+        var pat = /\{\{([^}]+)\}\}/g
+        var m = null;
+    
+        var p = new RegExp(pat);
+        while(m = p.exec(content)){
+            matchCount++;
+            matches.push(m[0])
+            logger.log('debug','found match '+m);
+        }
+        cb3(matchCount,matches);
+    }
+        
+    function atFile(s,co,cb1){
+        var link = s.replace("@", "");
+        var co_Ret;
+        //logger.log('debug','at symbol worked ++++++ link to include is "'+link+"'");
+        //logger.log('debug',s);
+        fs.exists(link, function(ex){
+            if (ex){
+                fs.readFile(link.toString(), function(err, FileData){
+                   if (err) {
+                       logger.log('debug','error reading include file (replaceCurlyTags)');
+                       co_ret = co.replace("{{"+s+"}}",'');
+                       return;
+                   } else {
+                       logger.log('debug','included @ file (replaceCurlyTags) '+link,FileData);
+                       co_ret = co.replace("{{"+s+"}}",FileData.toString());
+                       cb1(co_ret);
+                       return;
+                   }
+                });
+            } else {
+                logger.log('debug','link '+link+' does not exist');
+                cb1(content);
+                return;
+            }
+        });
+    } 
+    
+    function regularStringReplace(s2,co2,cb2){
+        var co2_return;
+        if (settings[s2]){
+            var MyVar = settings[s2].value;
+            co2_return = co2.replace("{{"+s2+"}}", MyVar);
+            //logger.log('debug','replaced '+s2+' with '+MyVar);
+            cb2(co2_return);
+            return;
+        } {
+            co2_return = co2.replace(s2, s2+' is not defined');
+            cb2(co2_return);
+            return;
+        }
+    }
+     
+    
+    function iterate(returnVals){
+        content = returnVals;
+        counter++;
+        if (counter < matchCount){
+            curlyInstance = matches[counter].replace('}}','').replace('{{','');
+            curlyInstance[0] == '@' ? atFile(curlyInstance,content, iterate) : regularStringReplace(curlyInstance,content, iterate)
+        }else{
+            logger.log('debug','replaceCurlys done, calling callback');
+            cb(content);
+        }
+    }
+    
+    firstThing(content, function(var1,var2){
+        //logger.log('debug', 'matchCount= '+var1+' matches= '+var2);
+        iterate(content);
+    });
 }
 function compileIndex(cb){
     console.log("compile index running");
@@ -756,73 +858,55 @@ function saveData(req, res){    // saves the data from the text
         var a = JSON.parse(savedata);
         logger.log('debug',util.inspect(a));
 
-        constructhtml(a, function(ret){ 
-            if (ret.destination == 'jsondocs' || ret.destination == 'drafts'){
-                if (ret.display === true){
-                    var resText = '';
-                    var liveFileName = "./jsondocs/"+ret.url;
-                    var draftFileName = './drafts/'+ret.url;
-                    var jsonstring = JSON.stringify(ret);
-                    saveDoc(liveFileName,jsonstring, function(code){
-                        if(code == 'success'){
-                            resText += 'File saved successfully to ./jsondocs\n';
-                            removeDoc(draftFileName, function(code){
-                                if(code == 'success'){
-                                    resText += 'File removed from ./drafts\n';
-                                }else{
-                                    resText += 'Error removing file from ./drafts\n';
-                                }
-                                res.writeHead(200, { 'Content-Type': 'text/event-stream' });                        
-                                res.end(resText);
-                            });
-                        }else{
-                            resText += 'Error saving file to ./jsondocs\n';
-                            res.writeHead(200, { 'Content-Type': 'text/event-stream' });                        
-                            res.end(resText);
-                        }
-                    });          
-                } else {
-                    var resText = '';
-                    var liveFileName = "./jsondocs/"+ret.url;
-                    var draftFileName = './drafts/'+ret.url;
-                    var jsonstring = JSON.stringify(ret);
-                    saveDoc(draftFileName,jsonstring, function(code){
-                        if(code == 'success'){
-                            resText += 'File saved successfully to ./drafts\n';
-                            removeDoc(liveFileName, function(code){
-                                if(code == 'success'){
-                                    resText += 'File saved removed from ./jsondocs\n';
-                                    res.writeHead(200, { 'Content-Type': 'text/event-stream' });                        
-                                    res.end(resText);
-                                }else{
-                                    resText += 'Error removing file from ./jsondocs\n';
-                                    res.writeHead(200, { 'Content-Type': 'text/event-stream' });                        
-                                    res.end(resText);
-                                }
-                            });
-                        }else{
-                            resText += 'Error saving file to ./drafts\nArticle might still be live';
-                                res.writeHead(200, { 'Content-Type': 'text/event-stream' });                        
-                                res.end(resText);
-                        }
-                    });
-                }
-            } else if (ret.destination == 'errorpages' || ret.destination == 'landingpages'){
-                var resText = '';
+        var responseText = {};
+
+        if(a.destination && a.url){
+            constructhtml(a, function(ret){
+                var jsonstring = JSON.stringify(ret); 
                 var FileName = './'+ret.destination+'/'+ret.url;
-                var jsonstring = JSON.stringify(ret);
+
                 saveDoc(FileName,jsonstring, function(code){
                     if(code == 'success'){
-                        resText += 'File saved successfully to '+ret.destination+'\n';
+                        responseText.message = 'File saved successfully to '+ret.destination+'.';
+                        responseText.code = 200;
                     }else{
-                        resText += 'Error saving  to '+ret.destination+'\n';
+                        responseText.message = 'Error saving file to '+ret.destination+'.';
+                        responseText.code = 503;
                     }
-                    res.writeHead(200, { 'Content-Type': 'text/event-stream' });                        
-                    res.end(resText);
-                });
-            } 
-        });
+
+                    if (a.destination == 'jsondocs' || a.destination == 'drafts'){
+                        var switchFolders = {
+                            'jsondocs':'drafts',
+                            'drafts':'jsondocs'
+                        }
+
+                        removeDoc('./'+switchFolders[a.destination]+'/'+a.url, function(code){
+                            if (code == 'error') {
+                                responseText.message += ' Could move file from '+switchFolders[a.destination]+'.';
+                            } else if (code == 'success'){
+                                responseText.message += ' Removed file from '+switchFolders[a.destination]+'.'
+                            } else if (code == 'exist'){
+                                logger.log('debug',a.destination+' does not exist in '+switchFolders[a.destination]+'.')
+                            }
+                            sendResponse(req,res,responseText.code,responseText.message);
+                        });
+                    } else {
+                        sendResponse(req,res,responseText.code,responseText.message)
+                    }
+                });  
+            });
+        } else {
+            sendResponse(req,res,503,"Incomplete Data. Cannot Save")
+        }
     }); 
+}
+function sendResponse(req,res,code,responseText){
+    var g = JSON.stringify(responseText)
+
+    logger.log('debug',util.inspect(g));
+
+    res.writeHead(code, { 'Content-Type': 'text/event-stream' });
+    res.end(responseText);
 }
 function deleteFile(req,res){ // deletes a json or css file
         req.on('data', function(chunk) {
@@ -831,36 +915,35 @@ function deleteFile(req,res){ // deletes a json or css file
             logger.log('debug',util.inspect(a));
             
             var path;
-        
-            switch (a.type){
-                case 'jsondocs':
-                    path = "./jsondocs/"+a.file;       
-                    break;
-                case 'drafts':
-                    path = "./drafts/"+a.file;
-                    break;
-                case 'errorpages':
-                    path = "./errorpages/"+a.file;
-                    break;
-                case 'landingpages':
-                    path = "./landingpages/"+a.file;
-                    break;
-                case 'css':
-                    path = "./resources/CSS/"+a.file;
-                    break;
-            }
-            
-            fs.unlink(path, function(err){
-                if (err) {
-                    res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                    res.end('There was a problem deleting the file'); 
-                } else {
-                    logger.log('debug',"Deleted "+path);
-                    res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                    res.end('Delete Success');
-            }
-         });
-            
+            if (a.type && a.file){
+                switch (a.type){
+                    case 'jsondocs':
+                        path = "./jsondocs/"+a.file;       
+                        break;
+                    case 'drafts':
+                        path = "./drafts/"+a.file;
+                        break;
+                    case 'errorpages':
+                        path = "./errorpages/"+a.file;
+                        break;
+                    case 'landingpages':
+                        path = "./landingpages/"+a.file;
+                        break;
+                    case 'css':
+                        path = "./resources/CSS/"+a.file;
+                        break;
+                }
+                fs.unlink(path, function(err){
+                    if (err) {
+                       sendResponse(req,res,503,'There was a problem deleting the file'); 
+                    } else {
+                        logger.log('debug',"Deleted "+path);
+                        sendResponse(req,res,200,'Delete Success');
+                    }
+                });
+            } else {
+                sendResponse(req,res,503,'Incomplete data. Cannot remove file'); 
+            }    
     });
 }
 function saveHfCssFile(req,res){ // saves a css or header/footer file
@@ -873,40 +956,40 @@ function saveHfCssFile(req,res){ // saves a css or header/footer file
         var a = JSON.parse(savedata);
         logger.log('debug',util.inspect(a));
         var fileName = null;
-        switch (a.doctype){
-            case 'header':
-                fileName = "./resources/headers/"+a.url;
-                break;
-            case 'footer':
-                fileName = "./resources/footers/"+a.url;
-                break;
-            case 'css':
-                fileName = "./resources/CSS/"+a.url;
-                break;
-            case 'nav':
-                fileName = "./resources/nav/"+a.url;
-                break;
-            case 'settings':
-                fileName = "./auth/settings.json";
-                resetsettings = true;
-                break;
-            
-        }
-            
+        if (a.doctype && a.url && a.content){
+            switch (a.doctype){
+                case 'header':
+                    fileName = "./resources/headers/"+a.url;
+                    break;
+                case 'footer':
+                    fileName = "./resources/footers/"+a.url;
+                    break;
+                case 'css':
+                    fileName = "./resources/CSS/"+a.url;
+                    break;
+                case 'nav':
+                    fileName = "./resources/nav/"+a.url;
+                    break;
+                case 'settings':
+                    fileName = "./auth/settings.json";
+                    resetsettings = true;
+                    break;
+            }   
             fs.writeFile(fileName, a.content, function(err){
-                    if (err){
-                        logger.log('debug','error writing to file '+err);
-                        res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                        res.end('There was a problem saving');
-                    } else {
-                        logger.log('debug','file written successfully: '+fileName);
-                        res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                        res.end('file written successfully: '+fileName);
-                        if (resetsettings === true){
-                            refreshsettings();
-                        }
+                if (err){
+                    logger.log('debug','error writing to file '+err);
+                    sendResponse(rew,res,503,'There was a problem saving');
+                } else {
+                    logger.log('debug','file written successfully: '+fileName);
+                    sendResponse(req,res,200,'file written successfully: '+fileName);
+                    if (resetsettings === true){
+                        refreshsettings();
                     }
-                });
+                }
+            });
+        } else {
+            sendResponse(req,res,503,'Incomplete data. Cannot save file');
+        }
      });
 }
 function quickPreview(req,res){
@@ -1010,11 +1093,9 @@ function testSession(req,res){
         }
 
         if (ok){
-            res.writeHead(200,{ 'Content-Type': 'text/event-stream' });
-            res.end('key fits!')
+            sendResponse(req,res,200,fs.readFileSync("./auth/live_edit.html", 'utf-8',function(err,content){ return content;}));
         } else {
-            res.writeHead(200,{ 'Content-Type': 'text/event-stream' });
-            res.end('key does not fit!')
+            sendResponse(req,res,403,'key does not fit!')
         }
     });
 }
@@ -1030,8 +1111,7 @@ function makeSession(req,res){
     req.on('end', function(){
         logger.log('debug','setting session to '+key)
         sessionVar = key;
-        res.writeHead(200, {'Content-Type': 'text/event-stream'});
-        res.end('set session var');
+        sendResponse(req,res,200,'set session var');
     });
 }
 
