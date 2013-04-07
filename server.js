@@ -110,7 +110,7 @@ function compilePageParts(a,res,pview,fourohfour,cacheName){  // compile all the
     fourohfour ? returncode = 404: returncode = 200;
 
     var page = "";
-    complileReadFile('header',a,function(b){     // compileReadFile reads files on disk and 
+    complileReadFile('header',a,pview,function(b){     // compileReadFile reads files on disk and 
         page += b;                                              // returns them in a string
         complileCssLink(a,function(b){
             page += b;
@@ -118,17 +118,17 @@ function compilePageParts(a,res,pview,fourohfour,cacheName){  // compile all the
                 page += b;
                 compileHeaderTags(a,function(b){
                     page += b;
-                    complileReadFile('nav',a,function(b){
+                    complileReadFile('nav',a,pview,function(b){
                         page += b;
                         compilePageTitle(a,function(b){
                             if (a.hidetitle){
-                                page += '';                      // added sunday night feb 17
+                                page += '';
                             }else{
                                 page += b;
                             }
                             getHTML(a,function(b){
                                 page +=b;
-                                complileReadFile('footer',a,function(b){ 
+                                complileReadFile('footer',a,pview,function(b){ 
                                     page += b;
                                     replaceCurlyTags(page, function(ret){
                                         if (!pview){
@@ -201,65 +201,39 @@ function compileTitle(a,cb){
     cb(data);
     }
 }
-function complileReadFile(type, a, cb){
-
+function complileReadFile(type, a, pview, cb){
+    var str = '';
     var filePath = null;
-    var obj = null;
     switch(type){
         case 'header':
             filePath = './resources/headers/';
-            obj = a.header;
+            a.header_preview ? str = a.header_preview : str = a.header[0].file;
             break;
         case 'footer':
             filePath = './resources/footers/';
-            obj = a.footer;
+            a.footer_preview ? str = a.footer_preview : str = a.footer[0].file;
             break;
         case 'nav':
             filePath = './resources/nav/';
-            str = settings.navdefault.value;
-            break;
-        case 'css':
-            filePath = './resources/CSS/';
-            obj = a.css;
+            a.nav_preview ? str = a.nav_preview : str = settings.navdefault.value;
             break;
     }
-    if (obj){
-        for(i=0;i<obj.length;i++){
-            var fileName = filePath + obj[i].file;
-            logger.log('debug','compiler asking for '+fileName);
-            fs.exists(fileName, function(ex){
-                fs.readFile(fileName, 'utf-8', function(err,c){
-                    if (err){
-                        logger.log('debug','cant read '+fileName);
-                    } else {
-                        data = c.toString();
-                        cb(data);
-                        //logger.log('debug',data);
-                    }
-                });
-            });
-        }
         
-    }else if(str){
-        var fileName = filePath + str;
-            logger.log('debug','compiler asking for '+fileName);
-            fs.exists(fileName, function(ex){
-                fs.readFile(fileName, function(err,c){
-                    if (err){
-                        logger.log('debug','cant read '+fileName);
-                    } else {
-                        var data = c.toString();
-                        //logger.log('debug',data);
-                        cb(data);
-                        return;
-                    }
-                });
-            });
-    }else{
-        logger.log('debug','theres no '+type+'?');
-        var b = '\n';
-        cb(b);
-    }
+    logger.log('debug',type+' compiles as string');
+    var fileName = filePath + str;
+    logger.log('debug','compiler asking for '+fileName);
+    fs.exists(fileName, function(ex){
+        fs.readFile(fileName, function(err,c){
+            if (err){
+                logger.log('debug','cant read '+fileName);
+            } else {
+                var data = c.toString();
+                logger.log('debug',data);
+                cb(data);
+                return;
+            }
+        });
+    });
 }
 function sendTo404Page(req,res){  // handles compile 404, file 404 is handled elsewhere 
     fs.readFile('./jsondocs/fourohfour.json', function(error, content){
@@ -508,22 +482,23 @@ function refreshsettings(){
         }
     });
 }
-function constructhtml(a, cb){   // when saving an article in the editor, this compiles the html
-    if (a.title){               // that will be served up when the page compiles.
-        logger.log('debug','construct running on '+a.title);  // this section is specific to how my blog pages are structured
+function constructhtml(a, cb){                                      // when saving an article in the editor, this compiles the html
+    if (a.title){                                                   // that will be served up when the page compiles.
+        logger.log('debug','construct running on '+a.title);        // this section is specific to how my blog pages are structured
     }else{
         logger.log('debug', 'construct running, a.title null');
     }
-    var html = "<article>";         
-  for(i=0;i<a.content.length; i++){
-    var d = "";
-    
-    if (a.content[i].type !== 'HTML'){
-          var clean = a.content[i].text;
-          clean = clean.replace(/\</g,"&lt;");       // added sunday night Feb 17
-          clean = clean.replace(/\>/g,"&gt;");
-        } 
-    
+    var html = "<article>"; 
+
+    for(i=0;i<a.content.length; i++){
+
+        var d = "";
+        if (a.content[i].type !== 'HTML'){
+              var clean = a.content[i].text;
+              clean = clean.replace(/\</g,"&lt;");       // added sunday night Feb 17
+              clean = clean.replace(/\>/g,"&gt;");
+            } 
+        
         if (a.content[i].type == 'p'){
           d = "<p>";
           d += clean;
@@ -545,7 +520,6 @@ function constructhtml(a, cb){   // when saving an article in the editor, this c
   html += '</article>'
   a.html = html;
   cb(a);
-
 }  
 function returnfiles(d,ft,res,cb){  // returns the list of files requested in the api calls above
     logger.log('debug','file search starting in directory '+d);
@@ -860,7 +834,7 @@ function saveData(req, res){    // saves the data from the text
 
         var responseText = {};
 
-        if(a.destination && a.url){
+        if(a.destination && a.url && a.content){
             constructhtml(a, function(ret){
                 var jsonstring = JSON.stringify(ret); 
                 var FileName = './'+ret.destination+'/'+ret.url;
@@ -999,10 +973,15 @@ function quickPreview(req,res){
     });
     req.on('end', function(){
         var a = JSON.parse(savedata);
-        constructhtml(a, function(ret){
-            var pview = true;
-            compilePageParts(ret,res, pview);
-        });
+        if (a.title && a.content){
+            constructhtml(a, function(ret){
+                var pview = true;
+                compilePageParts(ret,res,pview);
+            });
+        } else {
+            sendResponse(req,res,503,'Incomplete Data. Cannot generate preview.');
+            return;
+        }
     });
 } 
 function compileArticlesPage(){
