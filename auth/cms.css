@@ -1,0 +1,92 @@
+#debug_modal, #settings_modal {
+    width: 760px;
+    margin-left: -380px;
+}
+#settings_modal {
+    width: 860px;
+    margin-left: -430px;
+}
+body{
+    background-image: url('/resources/img/mochaGrunge.png');
+    background-repeat: repeat;
+    overflow-y:scroll;
+}
+#properties_div, #draftcolumn, #image_upload_div, #header_tags_div {
+    background-image: url('/resources/img/old_mathematics.png');
+    background-repeat: repeat;
+	border-radius:6px;	
+    padding-bottom: 1px;
+}
+.center {
+    margin: 0 0 0 20px;
+}
+.bottom_space {
+    margin-bottom: 12px;
+}
+#page_container {
+    margin-top: 24px;
+}
+#articledraft, #controlsdiv {
+    margin: 12px 46px 12px 46px;
+}
+#controlsdiv {
+    text-align: center;
+}
+.thumb{
+    height:75px;
+}
+.librarydivhide {
+    height: 34px;
+    overflow: hidden;
+}
+.librarydiv button:after{
+    content:"Hide Library";
+}
+.librarydivhide button:after{
+    content:"Show Library"!important;
+}
+.codeedit{
+    font-family: Monaco, "Courier New", monospace;
+}
+#navbar_save_button{
+    float:right;
+}
+.dropspace, #navbar_save_button {
+    opacity:0;
+    margin-bottom: 0!important;
+    -webkit-transition:all .2s ease-in-out !important;
+}
+.full_opacity{
+    opacity:1!important;
+}
+.partial_opacity {
+    opacity:.4!important;
+}
+.itemholder:hover{
+    background-color: #aaa;
+}
+.itemholder{
+    -webkit-transition:all .2s ease-in-out !important;
+    border-radius: 6px;
+    padding-top: 1px;
+    padding-left: 1px;
+}
+.dragme {
+    margin-left: 200px;
+    opacity:0;
+    color:#999;
+    font-size: 14pt;
+}
+.itemholder:hover .dragme{
+    opacity:1!important;
+}
+.itemholder>textarea, .itemholder button{
+    margin-left: 2px;
+}
+.index_wrapper {
+    margin-top: 12px;
+	border-radius: 6px;
+	background-image: url('/resources/img/old_mathematics.png');
+	background-repeat: repeat;
+	padding-left: 6px;
+}

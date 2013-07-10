@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>CustomCMS New Article Markup</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" type="text/css" href="/resources/CSS/bootstrap.min.css">
+<link rel="stylesheet" type="text/css" href="/resources/CSS/bootstrap-responsive.min.css">
+<script type="text/javascript" src="/resources/_JS/jquery-1.9.1.min.js"></script>
+<link rel="stylesheet" type="text/css" href="cms.css"></style>
+
+
+</head>
+<body onload="wato_index.loadfiles();">
+
+<div class="navbar navbar-static-top navbar-inverse">
+<div class="navbar-inner">
+        <div class="container">
+
+          <a class="brand" href="/auth/cms.html">Wato CMS</a>
+          <div class="nav-collapse collapse">
+            <ul class="nav">
+                <li class="dropdown">
+                    <a class="dropdown-toggle" role="button" data-toggle="dropdown" href="#">Actions</a>
+                    <ul class="dropdown-menu" id="" role="menu" aria-labelledby="dLabel">
+                   		<li><a href="article_editor.html" role="menuitem">Article Editor</a></li>
+                        <li><a href="css_editor.html" role="menuitem">CSS Editor</a></li>
+                        <li><a href="head_editor.html" role="menuitem">Header/Footer Editor</a></li>
+                        <li><a href="nav_editor.html" role="menuitem">Nav Bar Editor</a></li>
+                    </ul>
+              </li>
+              <li class="dropdown">
+  					<a class="dropdown-toggle" role="button" data-toggle="dropdown" href="#">Files</a>
+                    <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
+                        <li class="dropdown-submenu">
+                            <a tabindex="-1" href="#">Articles</a>
+                            <ul class="dropdown-menu" id="filelist" role="menu" aria-labelledby="dLabel"></ul>
+                        </li>
+                        <li class="dropdown-submenu">
+                            <a tabindex="-1" href="#">Drafts</a>
+                            <ul class="dropdown-menu" id="draftlist" role="menu" aria-labelledby="dLabel"></ul>
+                        </li>
+                        <li class="dropdown-submenu">
+                            <a tabindex="-1" href="#">Landing Pages</a>
+                            <ul class="dropdown-menu" id="landing_page_list" role="menu" aria-labelledby="dLabel"></ul>
+                        </li>
+                        <li class="dropdown-submenu">
+                            <a tabindex="-1" href="#">Errorpages</a>
+                            <ul class="dropdown-menu" id="error_page_list" role="menu" aria-labelledby="dLabel"></ul>
+                        </li>
+                    </ul>
+              </li>
+              <li class="dropdown">
+                    <a class="dropdown-toggle " role="button" data-toggle="dropdown" href="#">Admin</a>
+                    <ul id="csslist" class="dropdown-menu" id="filelist" role="menu" aria-labelledby="dLabel">
+                    	<li><a href="#" onclick="settings.init();" role="menuitem">Settings</a></li>
+                        <li><a href="#" onclick="cms_utils.show_log('request');"  role="menuitem">Requests Log</a></li>
+                        <li><a href="#" onclick="cms_utils.show_log('debug');" role="menuitem">Debug Log</a></li>
+                    </ul>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+</div>
+<div class="container index_wrapper">
+
+
+      <div class="row ">
+        <div class="span4">
+          <h2>Get to work</h2>
+          <div class="span3 bs-docs-sidebar">
+        <ul class="nav nav-tabs nav-stacked" style="background-color:#fff;">
+          <li><a href="article_editor.html"><i class="icon-chevron-right"></i> Articles</a></li>
+          <li><a href="css_editor.html"><i class="icon-chevron-right"></i> CSS</a></li>
+          <li><a href="head_editor.html"><i class="icon-chevron-right"></i> Header &amp; Footer</a></li>
+          <li><a href="nav_editor.html"><i class="icon-chevron-right"></i> Nav Bar</a></li>
+          <li><a href="#" onclick="settings.init();"><i class="icon-chevron-right"></i> Settings</a></li>
+          <li><a href="#" onclick="cms_utils.show_log('debug');"><i class="icon-chevron-right"></i> Debug</a></li>
+          <li><a href="#" onclick="cms_utils.show_log('request');"><i class="icon-chevron-right"></i> Requests</a></li>
+        </ul>
+      </div>
+        </div>
+        <div class="span4">
+          <h2>Dev Log</h2>
+          <ul>
+          	<li><small class="label label-success">complete</small>  Debug Log in dropdown should spring a modal window. That way you dont have to leave whatever page you is own to track down bugs!</li>
+              <li><small class="label label-success">complete</small>  Template Engine includes files! Use &quot;&#123;&#123;&#64;<i>path to your file</i>&#125;&#125;&quot; to include HTML or whatever! It renders of the server. Example usage: &#123;&#123;&#64;./modules/twitterModule.html&#125;&#125;</li>
+          	<li><small class="label label-important">planned </small>  No unload warning</li>
+          	<li><small class="label label-info">planned </small>  Manage Users</li>
+          	<li><small class="label label-info">planned </small>  Ditch Basic Auth</li>
+          	<li><small class="label label-info">planned </small>  Changing article title doesn't really create a new article</li>
+          	<li><small class="label label-info">planned </small>  Auto-geneate URL once, then let user customize</li>
+              <li><small class="label label-info">planned </small>  Refresh button on logs</li>
+              <li><small class="label label-info">planned </small>  MVC, come on, lets do it!</li>
+          </ul>
+       </div>
+        <div class="span4">
+          <h2>New Bugs</h2>
+          <ul>
+          	<li><small class="label label-success">fixed</small>  /auth/ redirection broken</li>
+              <li><small class="label label-success">fixed</small>  Debug log doesnt escape HTML</li>
+          </ul>
+        </div>
+      </div>
+
+
+    </div> <!-- /container -->
+{{@./auth/bootstrap/debug_modal.html}}
+{{@./auth/bootstrap/settings_modal.html}}
+
+<script type="text/javascript" src="/resources/_JS/bootstrap.min.js"></script>
+<script type="text/javascript" src="/resources/_JS/bootstrap-dropdown.js"></script>
+<script type="text/javascript" src="/resources/_JS/bootstrap-button.js"></script>
+<script type="text/javascript" src="/resources/_JS/bootstrap-modal.js"></script>
+<script type="text/javascript" src="cms.js"></script>
+<script type="text/javascript">
+$('.dropdown-menu').click(function(event){
+    if($(this).hasClass('keep_open')){
+     event.stopPropagation();
+    }
+ });
+</script>
+
+
+</body>
+</html>

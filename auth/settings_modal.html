@@ -1,0 +1,38 @@
+<!-- Begin settings modal module -->
+<div id="settings_modal" class="modal hide fade in">
+
+  <div class="modal-header">
+
+    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+    
+    <h4 style="width:40px;"id="Settings_heading">Settings</h4>
+
+
+  </div>
+  <div class="modal-body">
+    <span id="settings_alert"></span>
+    <table class="table table-condensed">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Value</th>
+                <th>Delete?</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody id="settings_editspace"></tbody>
+    </table>
+
+
+  </div>
+
+  <div class="modal-footer">
+
+    <button type="button" class="btn" onclick="settings.addSetting()">Add New Setting</button> 
+    <button type="button" class="btn btn-primary" onclick="settings.save()">Save</button>
+  </div>
+</div>
+<!-- end settings modal module -->
+
+
+

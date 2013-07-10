@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Wato Header &amp; Footer Editor</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" type="text/css" href="/resources/CSS/bootstrap.min.css">
+<link rel="stylesheet" type="text/css" href="/resources/CSS/bootstrap-responsive.min.css">
+<script type="text/javascript" src="/resources/_JS/jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="/resources/_JS/underscore.js"></script>
+<script type="text/javascript" src="/resources/_JS/backbone.js"></script>
+<link rel="stylesheet" type="text/css" href="./cms.css"></style>
+</head>
+<body onload="hf.init()" data-wato_page_id="hf">
+
+<div class="navbar navbar-static-top navbar-inverse">
+<div class="navbar-inner">
+        <div class="container">
+
+          <a class="brand" href="index.html">Wato CMS</a>
+          <div class="nav-collapse collapse">
+            <ul class="nav">
+                <li class="dropdown">
+                    <a class="dropdown-toggle" role="button" data-toggle="dropdown" href="#">Actions</a>
+                    <ul class="dropdown-menu" id="" role="menu" aria-labelledby="dLabel">
+                        <li><a href="javascript:void(0);" role="menuitem" tabindex="-1" id="newfile" onclick="hf.clearDoc()">New</a></li>
+                        <li><a href="javascript:void(0);" role="menuitem" tabindex="-1" id="previewbutton" onclick="hf.initPreview()">Preview</a></li>
+                        <li><a href="javascript:void(0);" role="menuitem" tabindex="-1" id="savebutton" onclick="hf.save()">Save</a></li>
+                        <li class="divider"></li>
+                        <li><a href="article_editor.html" role="menuitem">Article Editor</a></li>
+                        <li><a href="css_editor.html" role="menuitem">CSS Editor</a></li>
+                        <li><a href="nav_editor.html" role="menuitem">Nav Bar Editor</a></li>
+                        <li><a href="#" onclick="settings.init();" role="menuitem">Settings</a></li>
+                        <li><a href="#" onclick="cms_utils.show_log('request');"  role="menuitem">Requests Log</a></li>
+                        <li><a href="#" onclick="cms_utils.show_log('debug');" role="menuitem">Debug Log</a></li>
+                    </ul>
+              </li>
+              <li class="dropdown">
+  					<a class="dropdown-toggle" role="button" data-toggle="dropdown" href="#">Files</a>
+                    <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
+                        <li class="dropdown-submenu">
+                            <a tabindex="-1" href="#">Headers</a>
+                            <ul class="dropdown-menu" id="headerlist" role="menu" aria-labelledby="dLabel"></ul>
+                        </li>
+                        <li class="dropdown-submenu">
+                            <a tabindex="-1" href="#">Footers</a>
+                            <ul class="dropdown-menu" id="footerlist" role="menu" aria-labelledby="dLabel"></ul>
+                        </li>
+                    </ul>
+              </li>
+
+            </ul>
+          </div>
+          <span class="pull-right navbar-text">&nbsp;&nbsp;Header &amp; Footer Editor</span>
+          <button class="btn btn-primary" id="navbar_save_button" onclick="hf.save();">Save</button>
+
+        </div>
+      </div>
+
+</div>
+
+
+<div class="container" id="page_container">
+    <div id="draftwrapper" class="row">          
+        <div class="span4">
+            <div id="properties_div" class="bottom_space">
+                <form class="form-horizontal">
+                    <h5 class="center">Properties</h5>
+                  <div class="control-group">
+                    <label class="control-label" for="">Title</label>
+                    <div class="controls">
+                      <input class="span2" type="text" name="titlefield" id="titlefield">
+                    </div>
+                  </div>
+                  <div class="control-group">
+                    <div class="controls">
+                      <label class="radio">
+                        <input type="radio" class="doctyperadio" name="doctype" value="header">
+                        Header
+                      </label>
+                      <label class="radio">
+                        <input type="radio" class="doctyperadio" name="doctype" value="footer">
+                        Footer
+                      </label>
+                      </div>
+                  </div>
+                </form>
+            </div>
+        </div>
+        
+        <div id="draftcolumn" class="span8">
+            <div id="alertsdiv"></div>
+            <div id="articledraft">
+              <textarea id="editspace" class="span7 codeedit" rows="15"></textarea>
+            </div>
+            <div id="controlsdiv">
+                <div id="savedate"></div>
+            </div>
+        </div>
+    </div>
+    
+</div>
+
+
+{{@./auth/bootstrap/debug_modal.html}}
+{{@./auth/bootstrap/preview_modal.html}}
+{{@./auth/bootstrap/settings_modal.html}}
+
+<script type="text/javascript" src="/resources/_JS/bootstrap.min.js"></script>
+<script type="text/javascript" src="/resources/_JS/bootstrap-dropdown.js"></script>
+<script type="text/javascript" src="/resources/_JS/bootstrap-button.js"></script>
+<script type="text/javascript" src="/resources/_JS/bootstrap-modal.js"></script>
+<!--<script type="text/javascript" src="cms_backbone.js"></script>-->
+<script type="text/javascript" src="cms.js"></script>
+<script type="text/javascript">
+$('.dropdown-menu').click(function(event){
+    if($(this).hasClass('keep_open')){
+     event.stopPropagation();
+    }
+ });
+</script>
+
+
+</body>
+</html>
+
