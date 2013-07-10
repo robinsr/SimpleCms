@@ -304,105 +304,6 @@ function authcheck(req, res) {  // authorization based on username, password, & 
                     }
             }
 }
-function handler (req, res){  // normal file handler and sorts out api calls coming from the CMS
-
-  if (req.method == 'GET') {
-      var dirname;
-      var filetype;
-      
-      switch(req.url){
-    	case '/auth/jsondocs':
-		case '/api/filelist':
-			dirname = "./jsondocs";
-			filetype = ".json";
-			returnfiles(dirname, filetype, res);
-			break;
-		case '/auth/errorpages':
-			dirname = './errorpages';
-			filetype = '.json';
-			returnfiles(dirname, filetype, res);
-			break;
-		case '/auth/landingpages':
-			dirname = './landingpages';
-			filetype = '.json';
-			returnfiles(dirname, filetype, res);
-			break;
-		case '/auth/drafts':
-			dirname = './drafts';
-			filetype = '.json';
-			returnfiles(dirname, filetype, res);
-			break;
-		case '/auth/csslist':
-			dirname = "./resources/CSS";
-			filetype = ".css";
-			returnfiles(dirname, filetype, res);
-			break;
-		case '/auth/headerlist':
-			dirname = "./resources/headers";
-			filetype = ".html";
-			returnfiles(dirname, filetype, res);
-			break;
-		case '/auth/footerlist':
-			dirname = "./resources/footers";
-			filetype = ".html";
-			returnfiles(dirname, filetype, res);
-			break
-		case '/auth/nav':
-			dirname = "./resources/nav";
-			filetype = ".html";
-			returnfiles(dirname, filetype, res);
-			break;
-		case '/auth/imagelibrary':
-			dirname = "./resources/Images";
-			filetype = ".jpg";
-			returnfiles(dirname, filetype, res);
-			break;
-		case '/auth/requestslog':
-			viewLog('./logs/requests.log', settings.MessageLogLines.value,req,res);
-			break;
-		case '/auth/debuglog':
-			viewLog('./logs/debug.log', settings.MessageLogLines.value,req,res);
-			break;
-		default: 
-			staticFiles(req,res);
-			break;
-		}
-
-        
-    } else {								// req is a POST (api)
-		switch (req.url){
-			case '/auth/savedata':
-				saveData(req,res);
-                compileArticlesPage();
-                clearCache();
-				break;
-			case '/auth/deletefile':
-				modifyResource(req,res);
-				break;
-			case '/auth/modifyResource':
-				modifyResource(req,res);
-				break;
-			case '/auth/quickpreview':
-				quickPreview(req,res);
-				break;
-			case '/auth/imageloader':
-				upload_files(req, res);
-				break;
-			case '/auth/compileIndex':
-				compileIndex(req,res);
-				break;
-            case '/auth/makeSession':
-                makeSession(req,res);
-                break;
-            case '/api/testSession':
-                testSession(req,res);
-                break;
-			default:
-				staticFiles(req,res);
-    		break;
-		}
-	}
-}
 
 function staticFiles(req,res){
     var filePath = "."+req.url;
@@ -713,94 +614,7 @@ function replaceCurlyTags(content,cb){
         iterate(content);
     });
 }
-function compileIndex(cb){
-    console.log("compile index running");
-    var index = [];
-    var allFiles = [];
-    var count = 0
-    function searchDir(d, cb){
-        console.log('Reading directory '+d);
-        fs.readdir(d, function(err, files){
-            if (err){
-                console.log('error creating index step 1')
-            } else {
-                for (i=0;i<files.length;i++){
-                    allFiles.push(d+"/"+files[i]);
-                }
-            }
-            count++
-            cb()
-        });      
-    }
-    function indexFiles(a, cb){
-        console.log('reading '+a);
-        fs.readFile(a, 'utf-8', function(err,c){
-            if (err){
-                console.log('err reading '+a)
-            } else {
-                if (path.extname(a) == '.json'){
-                    var cpar = JSON.parse(c);
-                } else {
-                    var cpar = c;
-                }
-                var o ={
-                    "path":a,
-                    "content":cpar
-                }
-                var st = JSON.stringify(o);
-                index.push(o);
-                count++
-                cb();
-                return;
-            }
-        });
-    }   
-    var directories = [
-        "./jsondocs",
-        "./drafts",
-        "./errorpages",
-        "./landingpages",
-        "./resources/footers",
-        "./resources/headers",
-        "./resources/nav",
-        ];
 
-    function myLoop1(){
-        console.log("myloop1 "+count);
-        if (count<directories.length){
-            searchDir(directories[count], function(){
-            myLoop1();
-            });
-        } else {
-            var strngFiles = JSON.stringify(allFiles);
-            //console.log(strngFiles);
-            //console.log(strngFiles.length)
-            count = 0;
-            myLoop2();
-            
-        }
-    }
-
-    function myLoop2(){
-        console.log("myloop2 "+count);
-        if (count<allFiles.length){
-            indexFiles(allFiles[count], function(){
-            myLoop2();
-            });
-        } else {
-            var writeable = JSON.stringify(index);
-            fs.writeFile("./contentindex.json", writeable, function(err){
-                if (err){;
-                    console.log('error writing to index file');
-                } else {
-                    console.log('index complete!');
-                    cb(writeable);
-                }
-            });   
-        }
-    }
-    myLoop1();       
-}
 function upload_files(req,res){
     var streamdata = '';
     
@@ -821,37 +635,6 @@ function upload_files(req,res){
     });
 }
 
-function saveData(req, res){    // saves the data from the text editor into json docs
-  
-    var savedata = '';
-    req.on('data', function(chunk) {
-        logger.log('debug',"Received body data:");
-        savedata += chunk;
-    });
-
-    req.on('end', function(){
-        var a = JSON.parse(savedata);
-        logger.log('debug',util.inspect(a));
-
-        var responseText = {};
-
-        if(a.destination && a.url && a.content){
-            constructhtml(a, function(ret){
-                var jsonstring = JSON.stringify(ret); 
-
-                redis.set("watoarticle:"+a.url,jsonstring,function(err){
-                    if (err){
-                        sendResponse(req,res,503,'Error saving file to database');
-                    } else {
-                        sendResponse(req,res,200,'File saved successfully');
-                    }
-                }) 
-            });
-        } else {
-            sendResponse(req,res,503,"Incomplete Data. Cannot Save")
-        }
-    }); 
-}
 function sendResponse(req,res,code,responseText){
     var g = JSON.stringify(responseText)
 
@@ -932,7 +715,9 @@ function modifyResource(req,res){ // saves a css or header/footer file
             }
             
         } else {
+
             sendResponse(req,res,503,'Incomplete data. Cannot modify resource');
+
         }
     });
 }
@@ -1062,6 +847,90 @@ function makeSession(req,res){
         sessionVar = key;
         sendResponse(req,res,200,'set session var');
     });
+}
+
+function handler (req, res){  // normal file handler and sorts out api calls coming from the CMS
+      
+    switch(req.url){
+        case '/auth/jsondocs':
+        case '/api/filelist':
+            dirname = "./jsondocs";
+            filetype = ".json";
+            returnfiles(dirname, filetype, res);
+            break;
+        case '/auth/errorpages':
+            dirname = './errorpages';
+            filetype = '.json';
+            returnfiles(dirname, filetype, res);
+            break;
+        case '/auth/landingpages':
+            dirname = './landingpages';
+            filetype = '.json';
+            returnfiles(dirname, filetype, res);
+            break;
+        case '/auth/drafts':
+            dirname = './drafts';
+            filetype = '.json';
+            returnfiles(dirname, filetype, res);
+            break;
+        case '/auth/csslist':
+            dirname = "./resources/CSS";
+            filetype = ".css";
+            returnfiles(dirname, filetype, res);
+            break;
+        case '/auth/headerlist':
+            dirname = "./resources/headers";
+            filetype = ".html";
+            returnfiles(dirname, filetype, res);
+            break;
+        case '/auth/footerlist':
+            dirname = "./resources/footers";
+            filetype = ".html";
+            returnfiles(dirname, filetype, res);
+            break
+        case '/auth/nav':
+            dirname = "./resources/nav";
+            filetype = ".html";
+            returnfiles(dirname, filetype, res);
+            break;
+        case '/auth/imagelibrary':
+            dirname = "./resources/Images";
+            filetype = ".jpg";
+            returnfiles(dirname, filetype, res);
+            break;
+        case '/auth/requestslog':
+            viewLog('./logs/requests.log', settings.MessageLogLines.value,req,res);
+            break;
+        case '/auth/debuglog':
+            viewLog('./logs/debug.log', settings.MessageLogLines.value,req,res);
+            break;
+        case '/auth/savedata':
+            modifyResource(req,res);
+            compileArticlesPage();
+            clearCache();
+            break;
+        case '/auth/deletefile':
+            modifyResource(req,res);
+            break;
+        case '/auth/modifyResource':
+            modifyResource(req,res);
+            break;
+        case '/auth/quickpreview':
+            quickPreview(req,res);
+            break;
+        case '/auth/imageloader':
+            upload_files(req, res);
+            break;
+        case '/auth/makeSession':
+            makeSession(req,res);
+            break;
+        case '/api/testSession':
+            testSession(req,res);
+            break;
+        default:
+            staticFiles(req,res);
+        break;
+    }
 }
 
 app.listen(8080);
