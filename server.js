@@ -453,9 +453,6 @@ function forwardPageHandler(req,res){
       articleName = parsedPathname[0];
     } else if (settings.indexPage != ''){
       urlObj.pathname = settings.indexPage;
-      req.url = nodeurl.format(urlObj);
-      forwardPageHandler(req,res);
-      return;
     } else {
       urlObj.pathname = '/index.html';
       req.url = nodeurl.format(urlObj);
