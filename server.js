@@ -3,13 +3,14 @@ var path = require('path')
   , logger = require('./logger')
   , app = require('http').createServer(serve)
   , util = require('util')
-  , cmspass = require('./auth/cmspass')
+  //, cmspass = require('./auth/cmspass')
   , nodeurl = require('url')
   , events = require('events')
-  , redis = require('redis').createClient()
-  , appMonitor = require('appMonitor');
+  , redis = require('redis').createClient();
+  //, appMonitor = require('appMonitor');
 
-var settings = [];
+var settings = [],
+    configRequired = false;
 refreshsettings();// defaults, etc.
 
 var sessionVar = '';
@@ -64,35 +65,40 @@ function writeToCache(name,val){
 
 function serve(req,res){
     logger.log('req',req.url+' '+mimeType[path.extname(req.url)]);
-    checkPageCache(req.url, function(c){
-        if (c){
-            res.writeHead(200, { 'Content-Type': mimeType[path.extname(req.url)]});   
-            res.end(c, 'utf-8');
-            return;
-        } else {
-
-            var patharray = nodeurl.parse(req.url).path.split('/');
-
-            if (patharray[1]){
-                switch (patharray[1]){
-                    case 'auth':
-                        logger.log('debug','+++++++++++++++++++++++++++ AUTH DETECTED +++++++++++++++++++++++++++')
-                        authcheck(req,res);   // auth check to check credentials
-                        break;
-                    case 'api':
-                        logger.log('debug','sending to handler '+req.url)
-                        handler(req,res);
-                        break;
-                    default:
-                        forwardPageHandler(req, res);
-                        break;
-                }
-            } else {
-                forwardPageHandler(req, res);
+    if (configRequired == false){
+        checkPageCache(req.url, function(c){
+            if (c){
+                res.writeHead(200, { 'Content-Type': mimeType[path.extname(req.url)]});   
+                res.end(c, 'utf-8');
                 return;
+            } else {
+
+                var patharray = nodeurl.parse(req.url).path.split('/');
+
+                if (patharray[1]){
+                    switch (patharray[1]){
+                        case 'auth':
+                            logger.log('debug','+++++++++++++++++++++++++++ AUTH DETECTED +++++++++++++++++++++++++++')
+                            authcheck(req,res);   // auth check to check credentials
+                            break;
+                        case 'api':
+                            logger.log('debug','sending to handler '+req.url)
+                            handler(req,res);
+                            break;
+                        default:
+                            forwardPageHandler(req, res);
+                            break;
+                    }
+                } else {
+                    forwardPageHandler(req, res);
+                    return;
+                }
             }
-        }
-    });
+        });
+    } else {
+        res.writeHead(200);
+        res.end('Welcome to WatoCMS. Please setup a configuration file');
+    }
 }
 
 function compilePageParts(a,res,pview,fourohfour,cacheName){  // compile all the parts of the page and send out
@@ -227,22 +233,12 @@ function complileReadFile(type, a, pview, cb){
     });
 }
 function sendTo404Page(req,res){  // handles compile 404, file 404 is handled elsewhere 
-    redis.get('watoarticle:fourohfour', function(error, content){
-        if (error){
-            res.writeHead(404, { 'Content-Type': 'text/plain'});
-            res.end("what happened? 404");
-        } else {
-            //logger.log('debug','page found, starting compiler');
-            var json = JSON.parse(content);
-            var pview = null;
-            var four = true;
-            compilePageParts(json, res, pview, four);
-            return;
-        }
-    });
+    urlObj.pathname = settings.default404Page;
+    req.url = nodeurl.format(urlObj);
+    forwardPageHandler(req,res);
 }
 function authcheck(req, res) {  // authorization based on username, password, & allowed ip address
-    var auth = req.headers['authorization'];  
+    /*var auth = req.headers['authorization'];  
     var ip_address = null;
     var ip_addresspass = null;
     if(req.headers['x-forwarded-for']){
@@ -292,7 +288,8 @@ function authcheck(req, res) {  // authorization based on username, password, & 
                 // res.statusCode = 403;  
                 res.end('<html><body>You shall not pass</body></html>');
         }
-    }
+    }*/
+    handler(req,res);
 }
 
 function staticFiles(req,res){
@@ -366,14 +363,21 @@ function checkIndex(req,cb){
     }
 }
 function refreshsettings(){
-    redis.get("watoresource:settings",function(error, content) {
-        if (error) {
-            logger.log('debug','refreshsettings: there was an error readding the settings file!!');
-        } else {           
-            settings = JSON.parse(content);
-            logger.log('debug','settings are: '+util.inspect(settings));
+    redis.exists("watoresource:settings",function(er,exist){
+        if (exist == 0){
+            configRequired = true;
+        } else {
+            redis.get("watoresource:settings",function(error, content) {
+                if (error) {
+                    logger.log('debug','refreshsettings: there was an error readding the settings file!!');
+                } else {           
+                    settings = JSON.parse(content);
+                    logger.log('debug','settings are: '+util.inspect(settings));
+                }
+            });
         }
-    });
+    })
+    
 }
 function constructhtml(a, cb){                                      // when saving an article in the editor, this compiles the html
     if (a.title){                                                   // that will be served up when the page compiles.
@@ -610,7 +614,7 @@ function modifyResource(req,res){ // saves a css or header/footer file
 
     var resetsettings = null,
         createStaticResource = false,
-        savedata = '';.
+        savedata = '';
 
     req.on('data', function(chunk) {
         savedata += chunk;
@@ -893,4 +897,4 @@ function handler (req, res){  // normal file handler and sorts out api calls com
     }
 }
 
-app.listen(8080);
+app.listen(8125);
