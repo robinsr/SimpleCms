@@ -1,0 +1,42 @@
+{
+    "MessageLogLines": {
+        "require":true,
+        "value": "500",
+        "desc": "number of lines to print"
+    },
+    "titledefault": {
+        "require":true,
+        "value": "Ethernet Bucket",
+        "desc": "Default title"
+    },
+    "navdefault": {
+        "require":true,
+        "value": "first_nav.html",
+        "desc": "Default navigation section"
+    },
+    "htmlprepagetitle": {
+        "require":true,
+        "value": "<header><h2>",
+        "desc": "HTML tags before title injection"
+    },
+    "htmlpostpagetitle": {
+        "require":true,
+        "value": "</h2>",
+        "desc": "HTML tags after title injection"
+    },
+    "htmlprepubdate": {
+        "require":true,
+        "value": "<date><strong>",
+        "desc": "html before date injection"
+    },
+    "htmlpostpubdate": {
+        "require":true,
+        "value": "</strong></date></header>",
+        "desc": "html after date injection"
+    },
+    "pageCache": {
+        "require":true,
+        "value": "false",
+        "desc": "boolean, cache pages for faster response, turn off during dev work"
+    }
+}
