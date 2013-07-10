@@ -447,19 +447,21 @@ function forwardPageHandler(req,res){
      // checks to see if there is a corresponding artcle
      // in the jsondocs directory
     var urlObj = nodeurl.parse(req.url),
-        parsedPathname = urlObj.pathname;
-        if (parsedPathName){
-          articleName = parsedPathname[0];
-        } else {
-          if (settings.indexPage != ''){
-            urlObj.pathname = settings.indexPage;
-            req.url = nodeurl.format(urlObj);
-            forwardPageHandler(req,res);
-          } else {
-            urlObj.pathname = '/index.html';
-            req.url = nodeurl.format(urlObj);
-            serveStatic(req,res);
-        }
+    parsedPathname = urlObj.pathname;
+    
+    if (parsedPathName){
+      articleName = parsedPathname[0];
+    } else if (settings.indexPage != ''){
+      urlObj.pathname = settings.indexPage;
+      req.url = nodeurl.format(urlObj);
+      forwardPageHandler(req,res);
+      return;
+    } else {
+      urlObj.pathname = '/index.html';
+      req.url = nodeurl.format(urlObj);
+      serveStatic(req,res);
+      return;
+    }
         
 
     redis.exists('watoarticle:'+articleName,function(er,exist){
