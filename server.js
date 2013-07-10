@@ -70,36 +70,25 @@ function serve(req,res){
             res.end(c, 'utf-8');
             return;
         } else {
-            var parsed = nodeurl.parse(req.url);
-            var patharray = parsed.path.split('/');
-            var jsondoc;
+
+            var patharray = nodeurl.parse(req.url).path.split('/');
+
             if (patharray[1]){
                 switch (patharray[1]){
                     case 'auth':
                         logger.log('debug','+++++++++++++++++++++++++++ AUTH DETECTED +++++++++++++++++++++++++++')
-                        authcheck(req,res);                             // auth check to check credentials
+                        authcheck(req,res);   // auth check to check credentials
                         break;
-                    case 'lp':
-                        jsondoc = '.'+req.url.replace('lp','landingpages')+'.json';
-                        forwardPageHandler(jsondoc, req, res);
-                        break;
-                    case 'resources':
-                    case 'jsondocs':
-                    case 'drafts':
-                    case 'landingpages':
                     case 'api':
                         logger.log('debug','sending to handler '+req.url)
                         handler(req,res);
-                        
                         break;
                     default:
-                        jsondoc = "./jsondocs"+req.url+'.json';
-                        forwardPageHandler(jsondoc, req, res);
+                        forwardPageHandler(req, res);
                         break;
                 }
             } else {
-                jsondoc = './jsondocs/index.json';
-                forwardPageHandler(jsondoc, req, res);
+                forwardPageHandler(req, res);
                 return;
             }
         }
@@ -238,7 +227,7 @@ function complileReadFile(type, a, pview, cb){
     });
 }
 function sendTo404Page(req,res){  // handles compile 404, file 404 is handled elsewhere 
-    fs.readFile('./jsondocs/fourohfour.json', function(error, content){
+    redis.get('watoarticle:fourohfour', function(error, content){
         if (error){
             res.writeHead(404, { 'Content-Type': 'text/plain'});
             res.end("what happened? 404");
@@ -253,56 +242,57 @@ function sendTo404Page(req,res){  // handles compile 404, file 404 is handled el
     });
 }
 function authcheck(req, res) {  // authorization based on username, password, & allowed ip address
-        var auth = req.headers['authorization'];  
-        var ip_address = null;
-        var ip_addresspass = null;
-        if(req.headers['x-forwarded-for']){
-            ip_address = req.headers['x-forwarded-for'];
-        }
-        else {
-            ip_address = req.connection.remoteAddress;
-        }     
-            if(!auth) {    
-                    res.statusCode = 401;
-                    res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
-                    res.end('<html><body>Need some creds son</body></html>');
-            }
-            else if(auth) {    // The Authorization was passed in so now we validate it
-                    var tmp = auth.split(' ');   
-                    var buf = new Buffer(tmp[1], 'base64'); 
-                    var plain_auth = buf.toString();       
-                    //logger.log('debug',"Decoded Authorization ", plain_auth);
-                    var creds = plain_auth.split(':'); 
-                    var username = creds[0];
-                    var password = creds[1];
-                        logger.log('debug',"login attempt: user: "+creds[0]+", pass: "+creds[1]+", ip: "+ip_address);
-                    for (i=0;i<cmspass.ip.length;i++){  // validate the ip address, only allowed ips get in
-                        allowed = cmspass.ip[i];
-                        if (String(ip_address) == cmspass.ip[i]){
-                            ip_addresspass = true;
-                        } 
-                    }
-     
-                    if((username == cmspass.name) && (password == cmspass.pw) && (ip_addresspass === true)) {   // Is the username/password correct?
-                            handler(req,res);
-                    }
-                    else if((username == cmspass.name) && (password == cmspass.pw) && (ip_addresspass !== true)) { // forbidden ip address
-                            //res.statusCode = 401; 
-                            res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
-                            res.statusCode = 403;  
-                            res.end('<html><body>Your location is bad, and you should feel bad</body></html>');
-                                logger.log('debug',"Bad Location");
-                    } else if((username == sessionVar) && (ip_addresspass === true)){ // correct sessionVar, user is using live edit tools;
-                            console.log('sessionVar confirmed in authcheck function');
-                            handler(req,res);
+    var auth = req.headers['authorization'];  
+    var ip_address = null;
+    var ip_addresspass = null;
+    if(req.headers['x-forwarded-for']){
+        ip_address = req.headers['x-forwarded-for'];
+    }
+    else {
+        ip_address = req.connection.remoteAddress;
+    }    
 
-                    } else {
-                            res.statusCode = 401; 
-                            res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
-                            // res.statusCode = 403;  
-                            res.end('<html><body>You shall not pass</body></html>');
-                    }
-            }
+    if(!auth) {    
+            res.statusCode = 401;
+            res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
+            res.end('<html><body>Need some creds son</body></html>');
+    }
+    else if(auth) {    // The Authorization was passed in so now we validate it
+        var tmp = auth.split(' ');   
+        var buf = new Buffer(tmp[1], 'base64'); 
+        var plain_auth = buf.toString();       
+        //logger.log('debug',"Decoded Authorization ", plain_auth);
+        var creds = plain_auth.split(':'); 
+        var username = creds[0];
+        var password = creds[1];
+            logger.log('debug',"login attempt: user: "+creds[0]+", pass: "+creds[1]+", ip: "+ip_address);
+        for (i=0;i<cmspass.ip.length;i++){  // validate the ip address, only allowed ips get in
+            allowed = cmspass.ip[i];
+            if (String(ip_address) == cmspass.ip[i]){
+                ip_addresspass = true;
+            } 
+        }
+
+        if((username == cmspass.name) && (password == cmspass.pw) && (ip_addresspass === true)) {   // Is the username/password correct?
+                handler(req,res);
+        }
+        else if((username == cmspass.name) && (password == cmspass.pw) && (ip_addresspass !== true)) { // forbidden ip address
+                //res.statusCode = 401; 
+                res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
+                res.statusCode = 403;  
+                res.end('<html><body>Your location is bad, and you should feel bad</body></html>');
+                    logger.log('debug',"Bad Location");
+        } else if((username == sessionVar) && (ip_addresspass === true)){ // correct sessionVar, user is using live edit tools;
+                console.log('sessionVar confirmed in authcheck function');
+                handler(req,res);
+
+        } else {
+                res.statusCode = 401; 
+                res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
+                // res.statusCode = 403;  
+                res.end('<html><body>You shall not pass</body></html>');
+        }
+    }
 }
 
 function staticFiles(req,res){
@@ -376,7 +366,7 @@ function checkIndex(req,cb){
     }
 }
 function refreshsettings(){
-    fs.readFile('./auth/settings.json', function(error, content) {
+    redis.get("watoresource:settings",function(error, content) {
         if (error) {
             logger.log('debug','refreshsettings: there was an error readding the settings file!!');
         } else {           
@@ -424,59 +414,60 @@ function constructhtml(a, cb){                                      // when savi
   a.html = html;
   cb(a);
 }  
-function returnfiles(d,ft,res,cb){  // returns the list of files requested in the api calls above
-    logger.log('debug','file search starting in directory '+d);
-        fs.readdir(d, function(err, files){
+function getImageList(req,res){  // returns the list of files requested in the api calls above
+        fs.readdir('./resources/images', function(err, files){
             if (err){
-                logger.log('debug','error in reading directory');
+                logger.log('debug','error in reading image directory');
                 res.writeHead(200, { 'Content-Type': 'text/event-stream' });
                 res.end('There was an error fetching files');
                 return;
             } else {
                 logger.log('debug','found '+files.length+' files in '+d);
                 var text = [];
-                for (i=0;i<files.length;i++){
-                    if (path.extname(files[i]) == ft){
-                        text.push(files[i]);
+                var count = 0;
+                function getImageUrl(){
+                    text.push(files[count]);
+                    if (count == files.length){
+                        var message = JSON.stringify(text);
+                        res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+                        res.end(message);
+                        logger.log('debug','files sent');
+                        return;
                     } else {
-                        //do nothing!
+                        count++
+                        getImageUrl();
                     }
-                    
                 }
-                if (res){
-                    var message = JSON.stringify(text);
-                    res.writeHead(200, { 'Content-Type': 'text/event-stream' });
-                    res.end(message);
-                    logger.log('debug','files sent');
-                    return;
-                } else {
-                    cb(text);
-                }
-                
+                getImageUrl();
             }
         });
 }
 
-function forwardPageHandler(path,req,res){
+function forwardPageHandler(req,res){
      // checks to see if there is a corresponding artcle
      // in the jsondocs directory
-    fs.exists(path, function(ex){
-        if (ex){
-            fs.readFile(path, function(error, content){
-                if (error){
-                        //logger.log('debug','not found, redirecting');  // if not then 404
-                    sendTo404Page(req,res);
-                    } else {
-                        //logger.log('debug','page found, starting compiler'); // if yes then compile the page
-                    var json = JSON.parse(content),
-                        pv = false,
-                        four = false;
-                    compilePageParts(json,res,pv,four,req.url);
-                    return;
-                }
-            });
+    var urlObj = nodeurl.parse(req.url),
+        parsedPathname = urlObj.pathname,
+        articleName = parsedPathname[0];
+
+    redis.exists('watoarticle:'+articleName,function(er,exist){
+        if (er){
+            urlObj.pathname = settings.default503Page;
+            req.url = nodeurl.format(urlObj);
+            forwardPageHandler(req,res);
+        } else if (exist == 0){
+            urlObj.pathname = settings.default404Page;
+            req.url = nodeurl.format(urlObj);
+            forwardPageHandler(req,res);
         } else {
-            sendTo404Page(req,res);
+            redis.get('watoarticle:'+articleName,function(er,content){
+                var json = JSON.parse(content),
+                    pv = false,
+                    four = false;
+
+                compilePageParts(json,res,pv,four,req.url);
+                return;
+            });
         }
     });
 }
@@ -865,9 +856,7 @@ function handler (req, res){  // normal file handler and sorts out api calls com
             returnfiles(dirname, filetype, res);
             break;
         case '/auth/imagelibrary':
-            dirname = "./resources/Images";
-            filetype = ".jpg";
-            returnfiles(dirname, filetype, res);
+            getImageList(dirname, filetype, res);
             break;
         case '/auth/requestslog':
             viewLog('./logs/requests.log', settings.MessageLogLines.value,req,res);
