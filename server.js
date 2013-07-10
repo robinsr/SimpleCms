@@ -64,40 +64,35 @@ function writeToCache(name,val){
 
 function serve(req,res){
     logger.log('req',req.url+' '+mimeType[path.extname(req.url)]);
-    if (configRequired == false){
         checkPageCache(req.url, function(c){
-            if (c){
-                res.writeHead(200, { 'Content-Type': mimeType[path.extname(req.url)]});   
-                res.end(c, 'utf-8');
-                return;
-            } else {
+        if (c){
+            res.writeHead(200, { 'Content-Type': mimeType[path.extname(req.url)]});   
+            res.end(c, 'utf-8');
+            return;
+        } else {
 
-                var patharray = nodeurl.parse(req.url).path.split('/');
+            var patharray = nodeurl.parse(req.url).path.split('/');
 
-                if (patharray[1]){
-                    switch (patharray[1]){
-                        case 'auth':
-                            logger.log('debug','+++++++++++++++++++++++++++ AUTH DETECTED +++++++++++++++++++++++++++')
-                            authcheck(req,res);   // auth check to check credentials
-                            break;
-                        case 'api':
-                            logger.log('debug','sending to handler '+req.url)
-                            handler(req,res);
-                            break;
-                        default:
-                            forwardPageHandler(req, res);
-                            break;
-                    }
-                } else {
-                    forwardPageHandler(req, res);
-                    return;
+            if (patharray[1]){
+                switch (patharray[1]){
+                    case 'auth':
+                        logger.log('debug','+++++++++++++++++++++++++++ AUTH DETECTED +++++++++++++++++++++++++++')
+                        authcheck(req,res);   // auth check to check credentials
+                        break;
+                    case 'api':
+                        logger.log('debug','sending to handler '+req.url)
+                        handler(req,res);
+                        break;
+                    default:
+                        forwardPageHandler(req, res);
+                        break;
                 }
+            } else {
+                forwardPageHandler(req, res);
+                return;
             }
-        });
-    } else {
-        res.writeHead(200);
-        res.end('Welcome to WatoCMS. Please setup a configuration file');
-    }
+        }
+    });
 }
 
 function compilePageParts(a,res,pview,fourohfour,cacheName){  // compile all the parts of the page and send out
