@@ -448,7 +448,19 @@ function forwardPageHandler(req,res){
      // in the jsondocs directory
     var urlObj = nodeurl.parse(req.url),
         parsedPathname = urlObj.pathname,
-        articleName = parsedPathname[0];
+        if (parsedPathName){
+          articleName = parsedPathname[0];
+        } else {
+          if (settings.indexPage != ''){
+            urlObj.pathname = settings.indexPage;
+            req.url = nodeurl.format(urlObj);
+            forwardPageHandler(req,res);
+          } else {
+            urlObj.pathname = '/index.html';
+            req.url = nodeurl.format(urlObj);
+            serveStatic(req,res);
+        }
+        
 
     redis.exists('watoarticle:'+articleName,function(er,exist){
         if (er){
