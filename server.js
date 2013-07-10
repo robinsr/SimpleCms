@@ -5,7 +5,9 @@ var path = require('path')
   , util = require('util')
   , cmspass = require('./auth/cmspass')
   , nodeurl = require('url')
-  , events = require('events');
+  , events = require('events')
+  , redis = require('redis').createClient()
+  , appMonitor = require('appMonitor');
 
 var settings = [];
 refreshsettings();// defaults, etc.
@@ -375,10 +377,10 @@ function handler (req, res){  // normal file handler and sorts out api calls com
                 clearCache();
 				break;
 			case '/auth/deletefile':
-				deleteFile(req,res);
+				modifyResource(req,res);
 				break;
-			case '/auth/savehfcssfile':
-				saveHfCssFile(req,res);
+			case '/auth/modifyResource':
+				modifyResource(req,res);
 				break;
 			case '/auth/quickpreview':
 				quickPreview(req,res);
@@ -819,8 +821,7 @@ function upload_files(req,res){
     });
 }
 
-function saveData(req, res){    // saves the data from the text 
-    logger.log('debug','this is a post');                        // editor into json docs
+function saveData(req, res){    // saves the data from the text editor into json docs
   
     var savedata = '';
     req.on('data', function(chunk) {
@@ -837,37 +838,14 @@ function saveData(req, res){    // saves the data from the text
         if(a.destination && a.url && a.content){
             constructhtml(a, function(ret){
                 var jsonstring = JSON.stringify(ret); 
-                var FileName = './'+ret.destination+'/'+ret.url;
 
-                saveDoc(FileName,jsonstring, function(code){
-                    if(code == 'success'){
-                        responseText.message = 'File saved successfully to '+ret.destination+'.';
-                        responseText.code = 200;
-                    }else{
-                        responseText.message = 'Error saving file to '+ret.destination+'.';
-                        responseText.code = 503;
-                    }
-
-                    if (a.destination == 'jsondocs' || a.destination == 'drafts'){
-                        var switchFolders = {
-                            'jsondocs':'drafts',
-                            'drafts':'jsondocs'
-                        }
-
-                        removeDoc('./'+switchFolders[a.destination]+'/'+a.url, function(code){
-                            if (code == 'error') {
-                                responseText.message += ' Could move file from '+switchFolders[a.destination]+'.';
-                            } else if (code == 'success'){
-                                responseText.message += ' Removed file from '+switchFolders[a.destination]+'.'
-                            } else if (code == 'exist'){
-                                logger.log('debug',a.destination+' does not exist in '+switchFolders[a.destination]+'.')
-                            }
-                            sendResponse(req,res,responseText.code,responseText.message);
-                        });
+                redis.set("watoarticle:"+a.url,jsonstring,function(err){
+                    if (err){
+                        sendResponse(req,res,503,'Error saving file to database');
                     } else {
-                        sendResponse(req,res,responseText.code,responseText.message)
+                        sendResponse(req,res,200,'File saved successfully');
                     }
-                });  
+                }) 
             });
         } else {
             sendResponse(req,res,503,"Incomplete Data. Cannot Save")
@@ -882,89 +860,81 @@ function sendResponse(req,res,code,responseText){
     res.writeHead(code, { 'Content-Type': 'text/event-stream' });
     res.end(responseText);
 }
-function deleteFile(req,res){ // deletes a json or css file
-        req.on('data', function(chunk) {
-      
-            var a = JSON.parse(chunk);
-            logger.log('debug',util.inspect(a));
-            
-            var path;
-            if (a.type && a.file){
-                switch (a.type){
-                    case 'jsondocs':
-                        path = "./jsondocs/"+a.file;       
-                        break;
-                    case 'drafts':
-                        path = "./drafts/"+a.file;
-                        break;
-                    case 'errorpages':
-                        path = "./errorpages/"+a.file;
-                        break;
-                    case 'landingpages':
-                        path = "./landingpages/"+a.file;
-                        break;
-                    case 'css':
-                        path = "./resources/CSS/"+a.file;
-                        break;
-                }
-                fs.unlink(path, function(err){
-                    if (err) {
-                       sendResponse(req,res,503,'There was a problem deleting the file'); 
-                    } else {
-                        logger.log('debug',"Deleted "+path);
-                        sendResponse(req,res,200,'Delete Success');
-                    }
-                });
-            } else {
-                sendResponse(req,res,503,'Incomplete data. Cannot remove file'); 
-            }    
+
+function modifyResource(req,res){ // saves a css or header/footer file
+
+    var resetsettings = null,
+        createStaticResource = false,
+        savedata = '';.
+
+    req.on('data', function(chunk) {
+        savedata += chunk;
     });
-}
-function saveHfCssFile(req,res){ // saves a css or header/footer file
-        var resetsettings = null;
-        var savedata = '';
-        req.on('data', function(chunk) {
-            savedata += chunk;
-        });
-        req.on('end', function(){
+
+    req.on('end', function(){
+
         var a = JSON.parse(savedata);
         logger.log('debug',util.inspect(a));
-        var fileName = null;
+
+        var redisKey = null;
+
         if (a.doctype && a.url && a.content){
             switch (a.doctype){
+                case 'article':
+                    redisKey = "watoarticle:"+a.url;
+                    break;
                 case 'header':
-                    fileName = "./resources/headers/"+a.url;
+                    redisKey = "watoresource:headers:"+a.url;
                     break;
                 case 'footer':
-                    fileName = "./resources/footers/"+a.url;
+                    redisKey = "watoresource:footers:"+a.url;
                     break;
                 case 'css':
-                    fileName = "./resources/CSS/"+a.url;
+                    redisKey = "watoresource:CSS:"+a.url;
                     break;
                 case 'nav':
-                    fileName = "./resources/nav/"+a.url;
+                    redisKey = "watoresource:nav:"+a.url;
                     break;
                 case 'settings':
-                    fileName = "./auth/settings.json";
+                    redisKey = "watoresource:settings";
                     resetsettings = true;
                     break;
-            }   
-            fs.writeFile(fileName, a.content, function(err){
-                if (err){
-                    logger.log('debug','error writing to file '+err);
-                    sendResponse(rew,res,503,'There was a problem saving');
-                } else {
-                    logger.log('debug','file written successfully: '+fileName);
-                    sendResponse(req,res,200,'file written successfully: '+fileName);
-                    if (resetsettings === true){
-                        refreshsettings();
+            }
+            if (req.method == 'PUT' || req.method == 'POST'){
+
+                redis.set(redisKey,savedata,function(err){
+                    if (err){
+                        sendResponse(rew,res,503,'There was a problem saving');
+                        return;
+                    } else {
+                        sendResponse(req,res,200,'Resource saved successfully: '+fileName);
+                        if (resetsettings === true){
+                            refreshsettings();
+                        }
+                        return;
                     }
-                }
-            });
+                });
+
+            } else if (req.method == 'DELETE'){
+
+                redis.del(redisKey,function(err){
+                    if (err){
+                        sendResponse(rew,res,503,'There was a problem removing resource');
+                        return;
+                    } else {
+                        sendResponse(req,res,200,'Resource removed successfully: '+fileName);
+                        if (resetsettings === true){
+                            refreshsettings();
+                        }
+                        return;
+                    }
+                });
+            }
+            
         } else {
-            sendResponse(req,res,503,'Incomplete data. Cannot save file');
+            sendResponse(req,res,503,'Incomplete data. Cannot modify resource');
         }
-     });
+    });
 }
 function quickPreview(req,res){
     var savedata = '';
@@ -1095,39 +1065,3 @@ function makeSession(req,res){
 }
 
 app.listen(8080);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
