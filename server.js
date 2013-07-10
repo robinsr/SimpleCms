@@ -456,36 +456,7 @@ function returnfiles(d,ft,res,cb){  // returns the list of files requested in th
             }
         });
 }
-function saveDoc(fn,json,cb){
-    fs.writeFile(fn, json, function(err){
-        if (err){
-            logger.log('activity','Error saving ('+fn+') Error: '+err);
-            cb('fail');
-        } else {
-            logger.log('activity',fn+' saved successfully');
-            cb('success');
-        }
-    });
-}
-function removeDoc(fn,cb){
-    logger.log('debug','removing '+fn);
-    fs.exists(fn, function(ex){
-        if (ex){
-            fs.unlink(fn, function(err){
-                if (err){
-                    logger.log('activity','Error unlinking file ('+fn+') Error: '+err);
-                    cb('error');
-                } else {
-                    logger.log('activity',fn+' unlinked successfully');
-                    cb('success');
-                }
-            });
-        } else {
-            cb('exist');
-        }
-    })
-        
-}
+
 function forwardPageHandler(path,req,res){
      // checks to see if there is a corresponding artcle
      // in the jsondocs directory
