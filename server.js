@@ -9,8 +9,7 @@ var path = require('path')
   , redis = require('redis').createClient();
   //, appMonitor = require('appMonitor');
 
-var settings = [],
-    configRequired = false;
+var settings = [];
 refreshsettings();// defaults, etc.
 
 var sessionVar = '';
@@ -365,7 +364,9 @@ function checkIndex(req,cb){
 function refreshsettings(){
     redis.exists("watoresource:settings",function(er,exist){
         if (exist == 0){
-            configRequired = true;
+            fs.readFile('/auth/settings.json',function(er,content){
+              settings = JSON.parse(content);
+            })
         } else {
             redis.get("watoresource:settings",function(error, content) {
                 if (error) {
