@@ -38,5 +38,10 @@
         "require":true,
         "value": "false",
         "desc": "boolean, cache pages for faster response, turn off during dev work"
+    },
+    "indexPage": {
+        "required":true,
+        "value":"",
+        "desc": "your index page"
     }
 }
