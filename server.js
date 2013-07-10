@@ -364,7 +364,7 @@ function checkIndex(req,cb){
 function refreshsettings(){
     redis.exists("watoresource:settings",function(er,exist){
         if (exist == 0){
-            fs.readFile('/auth/settings.json',function(er,content){
+            fs.readFile('./auth/settings.json',function(er,content){
               settings = JSON.parse(content);
             })
         } else {
