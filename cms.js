@@ -52,36 +52,21 @@ var article = {
                 target.innerHTML = "";
                 if (list.length !== 0){
                     for (i=0;i<list.length;i++){
-                        var li = document.createElement("li");
-                        var ahref = document.createElement("a");
-                        ahref.setAttribute("href","javascript:void(0)");
-                        ahref.setAttribute("class", "fileitem");
-                        ahref.setAttribute("role","menuitem");
-                        ahref.setAttribute("tabindex","-1");
-                        ahref.dataset.wato_file_type = api_urls[loadFileList_counter];
-                        var text = document.createTextNode(list[i]);
-                        var icon = document.createElement("i");
-                        icon.className = "icon-remove";
-                        ahref.appendChild(text);
-                        //ahref.appendChild(icon);  puts x icon next to name
-                        li.appendChild(ahref);
-                        target.appendChild(li);
+                         // UNTESTED                       
+                        $("<a>",{
+                        	href: "javascript:void(0)",
+                        	class: "fileitem",
+                        	role: "menuitem",
+                        	tabindex: "-1"
+                        }).data("wato_file_type",pi_urls[loadFileList_counter]).text(list[i]).appendTo($("<li>")).appendTo(target)
                     }
                 } else {
-                    var li = document.createElement("li");
-                    li.className = "disabled"
-                    var ahref = document.createElement("a");
-                    ahref.setAttribute("href","javascript:void(0)");
-                    ahref.setAttribute("class", "fileitem");
-                    ahref.setAttribute("role","menuitem");
-                    ahref.setAttribute("tabindex","-1");
-                    var text = document.createTextNode("-none-");
-                    var icon = document.createElement("i");
-                    icon.className = "icon-remove";
-                    ahref.appendChild(text);
-                    //ahref.appendChild(icon);  puts x icon next to name
-                    li.appendChild(ahref);
-                    target.appendChild(li);
+                    $("<a>",{
+                	href: "javascript:void(0)",
+                	class: "fileitem",
+                	role: "menuitem",
+                	tabindex: "-1"
+                    }).data("wato_file_type",pi_urls[loadFileList_counter]).text('-none-').appendTo($("<li>")).addClass('disabled').appendTo(target)
                 }
             if (loadFileList_counter > 2){
                 article.registerFileDelete();
