@@ -7,49 +7,49 @@
 
 
  // object representing a file; used for makeing dropdowns
-function file(title,selected){
-	this.title = title;
-	this.selected = selected;
-}
+ function file(title,selected){
+ 	this.title = title;
+ 	this.selected = selected;
+ }
 
  // object for category or tag 
-function catTag(name){
-	this.name = name;
-}
+ function catTag(name){
+ 	this.name = name;
+ }
 
  // article object
-function article(obj){
-	var self = this;
-	this.title = obj.title ? ko.observable(obj.title) : ko.observable('New Article');
-	this.slug = obj.slug ? ko.observable(obj.slug) : ko.computed(function(){
-		return self.title().replace(/\s/g,'').toLowerCase()
-	});
-	this.publishDate = obj.publishDate ? ko.observable(obj.publishDate) : ko.observable(new Date());
-	this.content = obj.content ? ko.observableArray(obj.content) : ko.observableArray([]);
-	this.tags = obj.tags ? ko.observableArray(obj.tags) : ko.observableArray([]);
-	this.categories = obj.categories ? ko.observableArray(obj.categories) : ko.observableArray([]);
-	this.hideTitle = obj.hideTitle ? ko.observable(obj.hideTitle) : ko.observable(false);
-	this.previewText = obj.previewText ? ko.observable(obj.previewText) : ko.observable();
-	this.headerTags = obj.headerTags ? ko.observable(obj.headerTags) : ko.observable();
-	this.selectedDestination = obj.selectedDestination ? ko.observable(obj.selectedDestination) : ko.observable();
-	this.css = obj.css ? ko.observableArray(obj.css) : ko.observableArray();
-	this.header = obj.header ? ko.observableArray(obj.header) : ko.observableArray();
-	this.footer = obj.footer ? ko.observableArray(obj.footer) : ko.observableArray();
-}
+ function article(obj){
+ 	var self = this;
+ 	this.title = obj.title ? ko.observable(obj.title) : ko.observable('New Article');
+ 	this.slug = obj.slug ? ko.observable(obj.slug) : ko.computed(function(){
+ 		return self.title().replace(/\s/g,'').toLowerCase()
+ 	});
+ 	this.publishDate = obj.publishDate ? ko.observable(obj.publishDate) : ko.observable(new Date());
+ 	this.content = obj.content ? ko.observableArray(obj.content) : ko.observableArray([]);
+ 	this.tags = obj.tags ? ko.observableArray(obj.tags) : ko.observableArray([]);
+ 	this.categories = obj.categories ? ko.observableArray(obj.categories) : ko.observableArray([]);
+ 	this.hideTitle = obj.hideTitle ? ko.observable(obj.hideTitle) : ko.observable(false);
+ 	this.previewText = obj.previewText ? ko.observable(obj.previewText) : ko.observable();
+ 	this.headerTags = obj.headerTags ? ko.observable(obj.headerTags) : ko.observable();
+ 	this.selectedDestination = obj.selectedDestination ? ko.observable(obj.selectedDestination) : ko.observable();
+ 	this.css = obj.css ? ko.observableArray(obj.css) : ko.observableArray();
+ 	this.header = obj.header ? ko.observableArray(obj.header) : ko.observableArray();
+ 	this.footer = obj.footer ? ko.observableArray(obj.footer) : ko.observableArray();
+ }
 
  // sample article, no content yet
-var testArticle = {
-	title: "test article",
-	tags: [{name: "testtag1"},{name:"testtag2"}],
-	categories: [{name:"testcat1"},{name:"testcat2"}],
-	previewText : "this is test preview text",
-	selectedDestination : "Articles"
-}
+ var testArticle = {
+ 	title: "test article",
+ 	tags: [{name: "testtag1"},{name:"testtag2"}],
+ 	categories: [{name:"testcat1"},{name:"testcat2"}],
+ 	previewText : "this is test preview text",
+ 	selectedDestination : "Articles"
+ }
 
-function AppViewModel(){
-	var self = this;
+ function AppViewModel(){
+ 	var self = this;
 
-	self.article = {}
+ 	self.article = {}
 
 	// =================================
 	// MenuLists - arrays holding file names; used in dropdowns
@@ -69,28 +69,28 @@ function AppViewModel(){
 		self.article.css.removeAll();
 		ko.utils.arrayForEach(self.cssFiles(), function (file) {
 			console.log(file)
-            if (file.selected == true) {
-            	self.article.css.push({file:file.title})
-            }
-        })
+			if (file.selected == true) {
+				self.article.css.push({file:file.title})
+			}
+		})
 	}
 	self.findHeaders = function(){
 		self.article.header.removeAll();
 		ko.utils.arrayForEach(self.headerFiles(), function (file) {
 			console.log(file)
-            if (file.selected == true) {
-            	self.article.header.push({file:file.title})
-            }
-        })
+			if (file.selected == true) {
+				self.article.header.push({file:file.title})
+			}
+		})
 	}
 	self.findFooters = function(){
 		self.article.footer.removeAll();
 		ko.utils.arrayForEach(self.footerFiles(), function (file) {
 			console.log(file)
-            if (file.selected == true) {
-            	self.article.footer.push({file:file.title})
-            }
-        })
+			if (file.selected == true) {
+				self.article.footer.push({file:file.title})
+			}
+		})
 	}
 
 	// =================================
@@ -153,7 +153,7 @@ function AppViewModel(){
 	// loads file lists
 	var init = function(){
 		var api_urls = $([{
-		 	directory: "jsondocs",
+			directory: "jsondocs",
 			array: 'liveArticles'
 		},{
 			directory:"drafts",
