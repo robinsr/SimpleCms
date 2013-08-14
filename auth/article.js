@@ -32,6 +32,9 @@ function article(obj){
 	this.previewText = obj.previewText ? ko.observable(obj.previewText) : ko.observable();
 	this.headerTags = obj.headerTags ? ko.observable(obj.headerTags) : ko.observable();
 	this.selectedDestination = obj.selectedDestination ? ko.observable(obj.selectedDestination) : ko.observable();
+	this.css = obj.css ? ko.observableArray(obj.css) : ko.observableArray();
+	this.header = obj.header ? ko.observableArray(obj.header) : ko.observableArray();
+	this.footer = obj.footer ? ko.observableArray(obj.footer) : ko.observableArray();
 }
 
  // sample article, no content yet
@@ -58,6 +61,37 @@ function AppViewModel(){
 	self.cssFiles = ko.observableArray();
 	self.headerFiles = ko.observableArray();
 	self.footerFiles = ko.observableArray();
+
+	// =================================
+	// Controls for the menu lists - finds selected files and adds to article model
+
+	self.findCss = function(){
+		self.article.css.removeAll();
+		ko.utils.arrayForEach(self.cssFiles(), function (file) {
+			console.log(file)
+            if (file.selected == true) {
+            	self.article.css.push({file:file.title})
+            }
+        })
+	}
+	self.findHeaders = function(){
+		self.article.header.removeAll();
+		ko.utils.arrayForEach(self.headerFiles(), function (file) {
+			console.log(file)
+            if (file.selected == true) {
+            	self.article.header.push({file:file.title})
+            }
+        })
+	}
+	self.findFooters = function(){
+		self.article.footer.removeAll();
+		ko.utils.arrayForEach(self.footerFiles(), function (file) {
+			console.log(file)
+            if (file.selected == true) {
+            	self.article.footer.push({file:file.title})
+            }
+        })
+	}
 
 	// =================================
 	// UI controls - respond to user clicks and such
@@ -161,6 +195,7 @@ function AppViewModel(){
 			})
 		})
 		self.article = new article(testArticle);
+		console.log(ko.toJSON(self.article))
 	}
 
 	init();
