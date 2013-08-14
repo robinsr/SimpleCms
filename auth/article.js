@@ -1,61 +1,83 @@
-function file(title,type){
-	self.title = title;
-	self.type = type;
+/*
+ *  article.js 
+ *  Ryan Robinson
+ *  ryan.b.robinson@gmail.com
+ *
+ */
+
+
+ // object representing a file; used for makeing dropdowns
+function file(title,selected){
+	this.title = title;
+	this.selected = selected;
 }
+
+ // object for category or tag 
 function catTag(name){
 	this.name = name;
+}
+
+ // article object
+function article(obj){
+	var self = this;
+	this.title = obj.title ? ko.observable(obj.title) : ko.observable('New Article');
+	this.slug = obj.slug ? ko.observable(obj.slug) : ko.computed(function(){
+		return self.title().replace(/\s/g,'').toLowerCase()
+	});
+	this.publishDate = obj.publishDate ? ko.observable(obj.publishDate) : ko.observable(new Date());
+	this.content = obj.content ? ko.observableArray(obj.content) : ko.observableArray([]);
+	this.tags = obj.tags ? ko.observableArray(obj.tags) : ko.observableArray([]);
+	this.categories = obj.categories ? ko.observableArray(obj.categories) : ko.observableArray([]);
+	this.hideTitle = obj.hideTitle ? ko.observable(obj.hideTitle) : ko.observable(false);
+	this.previewText = obj.previewText ? ko.observable(obj.previewText) : ko.observable();
+	this.headerTags = obj.headerTags ? ko.observable(obj.headerTags) : ko.observable();
+	this.selectedDestination = obj.selectedDestination ? ko.observable(obj.selectedDestination) : ko.observable();
+}
+
+ // sample article, no content yet
+var testArticle = {
+	title: "test article",
+	tags: [{name: "testtag1"},{name:"testtag2"}],
+	categories: [{name:"testcat1"},{name:"testcat2"}],
+	previewText : "this is test preview text",
+	selectedDestination : "Articles"
 }
 
 function AppViewModel(){
 	var self = this;
 
-	// Article Properties
+	self.article = {}
 
-	self.title = ko.observable('New Article');
-	self.slug = ko.computed(function(){
-		return self.title().replace(/\s/g,'').toLowerCase()
-	})
-	self.publishDate = ko.observable(new Date());
-	self.content = ko.observableArray();
-	self.tags = ko.observableArray([{name: 'sample1'},{name:'sample2'}]);
-	self.categories = ko.observableArray([{name: 'sample1'},{name:'sample2'}]);
-	self.hideTitle = ko.observable(false);
-	self.previewText = ko.observable('preview text');
-	self.headerTags = ko.observable();
+	// =================================
+	// MenuLists - arrays holding file names; used in dropdowns
+
+	self.liveArticles = ko.observableArray();
+	self.drafts = ko.observableArray();
+	self.landingPages = ko.observableArray();
+	self.errorPages = ko.observableArray();
 	self.cssFiles = ko.observableArray();
 	self.headerFiles = ko.observableArray();
 	self.footerFiles = ko.observableArray();
-	self.saveDestinations = ko.observableArray(['Articles','Drafts','Landing Pages','Error Pages']);
-	self.selectedDestination = ko.observable();
-	self.selectedDestination.subscribe(function(value){
-		console.log(value)
-	})
-
 
 	// =================================
-	// MenuLists
-
-	self.articleList = ko.observableArray
-
-	// =================================
-	// UI controle
+	// UI controls - respond to user clicks and such
 
 	self.newTag = ko.observable();
 	self.deleteTag = function(element){
-		self.tags.remove(element);
+		self.article.tags.remove(element);
 		console.log(element);
 	}
 	self.addTag = function(){
-		self.tags.push(new catTag(self.newTag()))
+		self.article.tags.push(new catTag(self.newTag()))
 		self.newTag('');
 	}
 
 	self.newCat = ko.observable();
 	self.deleteCat = function(element){
-		self.categories.remove(element);
+		self.article.categories.remove(element);
 	}
 	self.addCat = function(){
-		self.categories.push(new catTag(self.newCat()))
+		self.article.categories.push(new catTag(self.newCat()))
 		self.newCat('');
 	}
 	self.newDocument = function(){}
@@ -88,13 +110,60 @@ function AppViewModel(){
 	}
 
 	// =================================
-	// init function called on load
-	var init = function(){
-		//alert('working!')
-	}
-	init();
+	// useful bits
 
-	console.log(self);
+	self.saveDestinations = ko.observableArray(['Articles','Drafts','Landing Pages','Error Pages']);
+
+	// =================================
+	// init function called on load
+	// loads file lists
+	var init = function(){
+		var api_urls = $([{
+		 	directory: "jsondocs",
+			array: 'liveArticles'
+		},{
+			directory:"drafts",
+			array: 'drafts'
+		},{
+			directory:"errorpages",
+			array: 'errorPages'
+		},{
+			directory:"landingpages",
+			array: 'landingPages'
+		},{
+			directory:"csslist",
+			array: 'cssFiles'
+		},{
+			directory:"headerlist",
+			array: 'headerFiles'
+		},{
+			directory:"footerlist",
+			array: 'footerFiles'
+		}]);
+
+		api_urls.each(function(){
+			
+			var url = "/auth/"+this.directory
+			var target = this.array
+			utils.issue(url,null,function(err,stat,text){
+				if (err){
+
+				} else if (stat !== 200) {
+
+				} else {
+					var parsed = JSON.parse(text);
+					parsed.forEach(function(newFile){
+						console.log('putting '+newFile+' into '+target);
+						self[target].push(new file(newFile,false))
+					})
+
+				}
+			})
+		})
+		self.article = new article(testArticle);
+	}
+
+	init();
 }
 
 var wato = { viewmodel: new AppViewModel()};
