@@ -17,6 +17,16 @@
  	this.name = name;
  }
 
+ // object for piece of content
+ function contentBlock(type,order,content){
+ 	var self = this;
+ 	this.type = type ? ko.observable(type) : ko.observable('p');
+ 	this.order = order ? ko.observable(order) : ko.computed(function(){
+ 		return wato.viewmodel.article.content().length;
+ 	})
+ 	this.content = content ? ko.observable(content) : ko.observable();
+ }
+
  // article object
  function article(obj){
  	var self = this;
@@ -43,7 +53,17 @@
  	tags: [{name: "testtag1"},{name:"testtag2"}],
  	categories: [{name:"testcat1"},{name:"testcat2"}],
  	previewText : "this is test preview text",
- 	selectedDestination : "Articles"
+ 	selectedDestination : "Articles",
+ 	content: [{
+ 		content:'p - test content',
+ 		order: 1,
+ 		type: 'p'
+ 	},{
+ 		content:'pre - test content2',
+ 		order: 2,
+ 		type: 'pre'
+ 	}
+ 	]
  }
 
  function AppViewModel(){
@@ -114,11 +134,33 @@
 		self.article.categories.push(new catTag(self.newCat()))
 		self.newCat('');
 	}
+	self.newParagraph = function(){
+		self.article.content.push(new contentBlock('p',null,'TEST CONTENT MAFA'))
+	}
+	self.newCode = function(){
+		self.article.content.push(new contentBlock('pre',null,null))
+	}
+	self.newHeading = function(){
+		self.article.content.push(new contentBlock('h2',null,null))
+	}
+	self.newHtml = function(){
+		self.article.content.push(new contentBlock('HTML',null,null))
+	}
+	self.newPicture = function(){
+
+	}
+
+	// =================================
+	// document options
+
 	self.newDocument = function(){}
 	self.exportFile = function(){}
 	self.preview = function(){}
 	self.save = function(){
-		console.log(self.saveDestination())
+		self.findCss();
+		self.findHeaders();
+		self.findFooters();
+		console.log(ko.toJSON(self.article))
 	}
 	self.uploadImage = function(){}
 
