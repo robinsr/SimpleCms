@@ -7,9 +7,10 @@
 
 
  // object representing a file; used for makeing dropdowns
- function file(title,selected){
+ function file(title,type,selected){
  	this.title = title;
- 	this.selected = selected;
+ 	this.type = type;
+ 	this.selected = ko.observable(selected);
  }
 
  // object for category or tag 
@@ -18,61 +19,41 @@
  }
 
  // object for piece of content
- function contentBlock(type,order,content){
+ function contentBlock(type,order,text){
  	var self = this;
  	this.type = type ? ko.observable(type) : ko.observable('p');
  	this.order = order ? ko.observable(order) : ko.computed(function(){
  		return wato.viewmodel.article.content().length;
  	})
- 	this.content = content ? ko.observable(content) : ko.observable();
- }
-
- // article object
- function article(obj){
- 	var self = this;
- 	this.title = obj.title ? ko.observable(obj.title) : ko.observable('New Article');
- 	this.slug = obj.slug ? ko.observable(obj.slug) : ko.computed(function(){
- 		return self.title().replace(/\s/g,'').toLowerCase()
- 	});
- 	this.publishDate = obj.publishDate ? ko.observable(obj.publishDate) : ko.observable(new Date());
- 	this.content = obj.content ? ko.observableArray(obj.content) : ko.observableArray([]);
- 	this.tags = obj.tags ? ko.observableArray(obj.tags) : ko.observableArray([]);
- 	this.categories = obj.categories ? ko.observableArray(obj.categories) : ko.observableArray([]);
- 	this.hideTitle = obj.hideTitle ? ko.observable(obj.hideTitle) : ko.observable(false);
- 	this.previewText = obj.previewText ? ko.observable(obj.previewText) : ko.observable();
- 	this.headerTags = obj.headerTags ? ko.observable(obj.headerTags) : ko.observable();
- 	this.selectedDestination = obj.selectedDestination ? ko.observable(obj.selectedDestination) : ko.observable();
- 	this.css = obj.css ? ko.observableArray(obj.css) : ko.observableArray();
- 	this.header = obj.header ? ko.observableArray(obj.header) : ko.observableArray();
- 	this.footer = obj.footer ? ko.observableArray(obj.footer) : ko.observableArray();
- }
-
- // sample article, no content yet
- var testArticle = {
- 	title: "test article",
- 	tags: [{name: "testtag1"},{name:"testtag2"}],
- 	categories: [{name:"testcat1"},{name:"testcat2"}],
- 	previewText : "this is test preview text",
- 	selectedDestination : "Articles",
- 	content: [{
- 		content:'p - test content',
- 		order: 1,
- 		type: 'p'
- 	},{
- 		content:'pre - test content2',
- 		order: 2,
- 		type: 'pre'
- 	}
- 	]
+ 	this.text = text ? ko.observable(text) : ko.observable();
  }
 
  function AppViewModel(){
  	var self = this;
 
- 	self.article = {}
+ 	self.article = {
+ 		title : ko.observable('New Article'),
+ 		url : ko.observable(),
+ 		publishDate : ko.observable(new Date()),
+ 		content : ko.observableArray([]),
+ 		tags : ko.observableArray([]),
+ 		categories : ko.observableArray([]),
+ 		hideTitle : ko.observable(false),
+ 		previewtext : ko.observable(),
+ 		headerTags : ko.observable(),
+ 		selectedDestination : ko.observable(),
+ 		css : ko.observableArray(),
+ 		header : ko.observableArray(),
+ 		footer : ko.observableArray(),
+
+	 	// write access specifies basic permissions
+
+	 	writeAccess : ko.observable(0)
+	 }
 
 	// =================================
 	// MenuLists - arrays holding file names; used in dropdowns
+	// and controls for the dropdowns
 
 	self.liveArticles = ko.observableArray();
 	self.drafts = ko.observableArray();
@@ -82,14 +63,85 @@
 	self.headerFiles = ko.observableArray();
 	self.footerFiles = ko.observableArray();
 
+	self.getFile = function(me){
+		console.log(me);
+		utils.issue('/'+me.type+'/'+me.title,null,function(err,stat,text){
+			if (err){
+
+			} else if (stat != 200){
+
+			} else {
+				var parsed = JSON.parse(text)
+
+				self.article.title(parsed.title)
+				self.article.url(parsed.url)
+				self.article.publishDate(parsed.publishDate)
+
+				self.article.content.removeAll();
+				$(parsed.content).each(function(){
+					self.article.content.push(new contentBlock(this.type,this.order,this.text))
+				})
+
+				self.article.tags.removeAll();
+				if ($.isArray(parsed.tags)){
+					$(parsed.tags).each(function(index,value){self.article.tags.push(new catTag(value))})
+				} else {
+					$(parsed.tags).each(function(){
+						self.article.tags.push(new catTag(this.name))
+					})
+				}
+
+				self.article.categories.removeAll();
+				if (parsed.categories && $.isArray(parsed.categories)) {
+					$(parsed.categories).each(function(index,value){self.article.categories.push(new catTag(value))})
+				} else if (parsed.categories) {
+					$(parsed.categories).each(function(){
+						self.article.categories.push(new catTag(this.name))
+					})
+				} else if (parsed.category) {
+					self.article.categories.push(new catTag(parsed.category))
+				}
+
+				self.article.hideTitle(parsed.hideTitle)
+				self.article.previewtext(parsed.previewtext)
+				self.article.headerTags(parsed.headerTags)
+				self.article.selectedDestination(parsed.selectedDestination)
+
+				ko.utils.arrayForEach(self.cssFiles(), function(file) {
+					file.selected(false) 
+					$(parsed.css).each(function(){
+						if (this.file == file.title){
+							file.selected(true)
+						}
+					})
+				});
+				ko.utils.arrayForEach(self.headerFiles(), function(file) {
+					file.selected(false) 
+					$(parsed.header).each(function(){
+						if (this.file == file.title){
+							file.selected(true)
+						}
+					})
+				});
+				ko.utils.arrayForEach(self.footerFiles(), function(file) {
+					file.selected(false) 
+					$(parsed.footer).each(function(){
+						if (this.file == file.title){
+							file.selected(true)
+						}
+					})
+				});
+			}
+		})
+	}
+
 	// =================================
 	// Controls for the menu lists - finds selected files and adds to article model
 
 	self.findCss = function(){
 		self.article.css.removeAll();
 		ko.utils.arrayForEach(self.cssFiles(), function (file) {
-			console.log(file)
-			if (file.selected == true) {
+			if (file.selected() == true) {
 				self.article.css.push({file:file.title})
 			}
 		})
@@ -97,8 +149,7 @@
 	self.findHeaders = function(){
 		self.article.header.removeAll();
 		ko.utils.arrayForEach(self.headerFiles(), function (file) {
-			console.log(file)
-			if (file.selected == true) {
+			if (file.selected() == true) {
 				self.article.header.push({file:file.title})
 			}
 		})
@@ -106,8 +157,7 @@
 	self.findFooters = function(){
 		self.article.footer.removeAll();
 		ko.utils.arrayForEach(self.footerFiles(), function (file) {
-			console.log(file)
-			if (file.selected == true) {
+			if (file.selected() == true) {
 				self.article.footer.push({file:file.title})
 			}
 		})
@@ -134,8 +184,9 @@
 		self.article.categories.push(new catTag(self.newCat()))
 		self.newCat('');
 	}
+
 	self.newParagraph = function(){
-		self.article.content.push(new contentBlock('p',null,'TEST CONTENT MAFA'))
+		self.article.content.push(new contentBlock('p',null,null))
 	}
 	self.newCode = function(){
 		self.article.content.push(new contentBlock('pre',null,null))
@@ -148,6 +199,12 @@
 	}
 	self.newPicture = function(){
 
+	}
+	self.pop = function(me){
+		self.article.content.splice(self.article.content.indexOf(me),1)
+	}
+	self.clone = function(me){
+		self.article.content.splice(self.article.content.indexOf(me),0,me)
 	}
 
 	// =================================
@@ -219,8 +276,9 @@
 
 		api_urls.each(function(){
 			
-			var url = "/auth/"+this.directory
-			var target = this.array
+			var url = "/auth/"+this.directory;
+			var fileType = this.directory;
+			var target = this.array;
 			utils.issue(url,null,function(err,stat,text){
 				if (err){
 
@@ -229,20 +287,38 @@
 				} else {
 					var parsed = JSON.parse(text);
 					parsed.forEach(function(newFile){
-						console.log('putting '+newFile+' into '+target);
-						self[target].push(new file(newFile,false))
+						self[target].push(new file(newFile,fileType,false))
 					})
-
 				}
 			})
 		})
-		self.article = new article(testArticle);
-		console.log(ko.toJSON(self.article))
+		console.log(self.article)
 	}
-
 	init();
 }
 
 var wato = { viewmodel: new AppViewModel()};
 
-ko.applyBindings(wato.viewmodel);
+
+ // auto-running function checks query string to load article or make new article
+
+ (function(){
+ 	if (window.location.search) {
+ 		var query = window.location.search.replace('?','');
+ 		var parts = query.split('&');
+ 		var queryObject = {};
+ 		for (i=0;i<parts.length;i++){
+ 			var keyValue = parts[i].split('=');
+ 			queryObject[keyValue[0]] = keyValue[1]
+ 		}
+ 		if (queryObject.doc && queryObject.type){
+ 			wato.viewmodel.getFile({type: queryObject.type, title: queryObject.doc})
+ 		}
+ 		ko.applyBindings(wato.viewmodel);
+ 	} else {
+
+ 		ko.applyBindings(wato.viewmodel);
+ 	}
+ })();
+
+
