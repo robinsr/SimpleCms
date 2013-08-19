@@ -5,6 +5,11 @@
  *
  */
 
+ if (Modernizr.draganddrop) {
+ 	console.log('drag drop yes')
+ } else {
+ 	console.log('drag drop no')
+ }
 
  // object representing a file; used for makeing dropdowns
  function file(title,type,selected){
@@ -22,10 +27,84 @@
  function contentBlock(type,order,text){
  	var self = this;
  	this.type = type ? ko.observable(type) : ko.observable('p');
- 	this.order = order ? ko.observable(order) : ko.computed(function(){
- 		return wato.viewmodel.article.content().length;
- 	})
+ 	this.order = ko.observable(order);
  	this.text = text ? ko.observable(text) : ko.observable();
+ }
+
+ function alert(type,title,message){
+ 	this.type = type;
+ 	this.title = title;
+ 	this.message = message;
+ }
+
+ ko.bindingHandlers.drag = {
+ 	init: function(element, valueAccessor, allBindingsAccessor, viewModel, context) {
+ 		if (Modernizr.draganddrop) {
+ 			$(element).each(function(){
+ 				$(this).on('dragstart',function(e){
+ 					var value = allBindingsAccessor();
+ 					e.originalEvent.dataTransfer.setData("please work", "in firefox")
+ 					wato.viewmodel.dragElement(viewModel);
+ 				}).on('dragend',function(e){
+ 					wato.viewmodel.dragElement(null);
+ 				})
+ 			})
+ 		} else {
+ 			$(element).each(function(){
+ 				var $dragging = null;
+ 				$(this).on("mousedown", function(e) {
+ 					$(this).attr('unselectable', 'on').addClass('draggable');
+ 					var el_w = $('.draggable').outerWidth(),
+ 					el_h = $('.draggable').outerHeight();
+ 					$('body').on("mousemove", function(e) {
+ 						if ($dragging) {
+ 							$dragging.offset({
+ 								top: e.pageY - el_h / 2,
+ 								left: e.pageX - el_w / 2
+ 							});
+ 						}
+ 					});
+ 					$dragging = $(e.target);
+ 				}).on("mouseup", function(e) {
+ 					$dragging = null;
+ 					$(this).removeAttr('unselectable').removeClass('draggable');
+ 				});
+ 			})
+ 		}
+ 	}	
+ }
+ ko.bindingHandlers.drop = {
+ 	init: function(element, valueAccessor, allBindingsAccessor, viewModel, context) {
+ 		if (Modernizr.draganddrop) {
+ 			$(element).each(function(){
+ 				
+		  		// $(this).
+		  		$(this).on('dragover',function(e){
+		  			e.preventDefault();
+		  			$(this).addClass('alert-error');
+		  		}).on('dragleave',function(e){
+		  			e.preventDefault()
+		  			$(this).removeClass('alert-error');
+		  		}).on('drop',function(ev){
+		  			ev.stopPropagation();
+		  			ev.preventDefault();
+    				// REORDER MODEL WITH INDEX VALUE OF MOVING ELEMENT, AND POSITION OF TARGET ELEMENT
+    				wato.viewmodel.reorderModel(wato.viewmodel.dragElement().order(),viewModel.order())
+    				$(this).removeClass('alert-error');
+    			})
+		  	})
+ 		} else {
+ 			$(element).each(function(){
+ 				$(this).hover(function(e){
+ 					console.log('mouse is in position')
+ 					$(this).on("mouseup",function(e){
+ 						console.log('dropped')
+
+ 					})
+ 				})
+ 			})
+ 		}
+ 	}
  }
 
  function AppViewModel(){
@@ -33,23 +112,25 @@
 
  	self.article = {
  		title : ko.observable('New Article'),
- 		url : ko.observable(),
+ 		url : ko.observable(''),
  		publishDate : ko.observable(new Date()),
  		content : ko.observableArray([]),
  		tags : ko.observableArray([]),
  		categories : ko.observableArray([]),
  		hideTitle : ko.observable(false),
- 		previewtext : ko.observable(),
- 		headerTags : ko.observable(),
- 		selectedDestination : ko.observable(),
- 		css : ko.observableArray(),
- 		header : ko.observableArray(),
- 		footer : ko.observableArray(),
+ 		previewtext : ko.observable(''),
+ 		headerTags : ko.observable(''),
+ 		selectedDestination : ko.observable(''),
+ 		css : ko.observableArray([]),
+ 		header : ko.observableArray([]),
+ 		footer : ko.observableArray([]),
 
 	 	// write access specifies basic permissions
 
 	 	writeAccess : ko.observable(0)
 	 }
+
+	 self.alert = ko.observableArray([]);
 
 	// =================================
 	// MenuLists - arrays holding file names; used in dropdowns
@@ -62,14 +143,14 @@
 	self.cssFiles = ko.observableArray();
 	self.headerFiles = ko.observableArray();
 	self.footerFiles = ko.observableArray();
+	self.dragElement = ko.observable(null);
 
 	self.getFile = function(me){
 		console.log(me);
 		utils.issue('/'+me.type+'/'+me.title,null,function(err,stat,text){
-			if (err){
-
-			} else if (stat != 200){
-
+			console.log(err,stat,text);
+			if (err || stat != 200){
+				self.alert.push(new alert('error','Error!','Failed to load '+me.title))
 			} else {
 				var parsed = JSON.parse(text)
 
@@ -78,25 +159,27 @@
 				self.article.publishDate(parsed.publishDate)
 
 				self.article.content.removeAll();
-				$(parsed.content).each(function(){
-					self.article.content.push(new contentBlock(this.type,this.order,this.text))
+				$(parsed.content).each(function(index){
+					self.article.content.push(new contentBlock(this.type,index,this.text))
 				})
 
 				self.article.tags.removeAll();
-				if ($.isArray(parsed.tags)){
-					$(parsed.tags).each(function(index,value){self.article.tags.push(new catTag(value))})
-				} else {
-					$(parsed.tags).each(function(){
+				$(parsed.tags).each(function(){
+					if ($.type(this) == 'object'){
 						self.article.tags.push(new catTag(this.name))
-					})
-				}
+					} else if ($.type(this) == 'string'){
+						self.article.tags.push(new catTag(this))
+					}
+				})
 
 				self.article.categories.removeAll();
-				if (parsed.categories && $.isArray(parsed.categories)) {
-					$(parsed.categories).each(function(index,value){self.article.categories.push(new catTag(value))})
-				} else if (parsed.categories) {
+				if (parsed.categories) {
 					$(parsed.categories).each(function(){
-						self.article.categories.push(new catTag(this.name))
+						if ($.type(this) == 'object'){
+							self.article.categories.push(new catTag(this.name))
+						} else if ($.type(this) == 'string'){
+							self.article.categories.push(new catTag(this))
+						}
 					})
 				} else if (parsed.category) {
 					self.article.categories.push(new catTag(parsed.category))
@@ -106,6 +189,7 @@
 				self.article.previewtext(parsed.previewtext)
 				self.article.headerTags(parsed.headerTags)
 				self.article.selectedDestination(parsed.selectedDestination)
+				self.article.writeAccess(parsed.writeAccess);
 
 				ko.utils.arrayForEach(self.cssFiles(), function(file) {
 					file.selected(false) 
@@ -131,9 +215,11 @@
 						}
 					})
 				});
+				utils.fitToContent($('textarea'),10000)
+
 			}
 		})
-	}
+}
 
 	// =================================
 	// Controls for the menu lists - finds selected files and adds to article model
@@ -161,6 +247,11 @@
 				self.article.footer.push({file:file.title})
 			}
 		})
+	}
+	self.findIncludedFiles = function(){
+		self.findCss();
+		self.findFooters();
+		self.findHeaders();
 	}
 
 	// =================================
@@ -204,20 +295,78 @@
 		self.article.content.splice(self.article.content.indexOf(me),1)
 	}
 	self.clone = function(me){
-		self.article.content.splice(self.article.content.indexOf(me),0,me)
+		self.article.content.splice(self.article.content.indexOf(me),0,me);
+		utils.fitToContent();
+	}
+	self.dismiss = function(me){
+		console.log(me);
+		self.alert.remove(me);
+	}
+	self.reorderModel = function(movingElementIndex,destinationIndex){
+		self.article.content.splice(destinationIndex,0,self.article.content.splice(movingElementIndex,1)[0]);
+		utils.fitToContent($('textarea'),10000);
+
+		var count = 0;
+		ko.utils.arrayForEach(self.article.content(),function(piece){
+			piece.order(count);
+			count++
+			return
+		});
+
 	}
 
 	// =================================
 	// document options
 
-	self.newDocument = function(){}
+	self.newDocument = function(){
+		self.article.title('New Article');
+		self.article.url('');
+		self.article.publishDate(new Date());
+		self.article.content([]);
+		self.article.tags([]);
+		self.article.categories([]);
+		self.article.hideTitle(false);
+		self.article.previewtext('');
+		self.article.headerTags('');
+		self.article.selectedDestination('');
+		self.article.css([]);
+		self.article.header([]);
+		self.article.footer([]);
+		self.article.writeAccess(0);
+	}
 	self.exportFile = function(){}
-	self.preview = function(){}
+	self.preview = function(){
+		self.findIncludedFiles();
+		utils.issue("/auth/quickpreview",ko.toJSON(self.article),function(err,stat,text){
+			if (err || stat != 200){
+				self.alert.push(new alert('error','Error!','There was a problem generating your preview'))
+			} else {
+				window.open('/auth/preview.html');
+			}
+		})
+	}
 	self.save = function(){
-		self.findCss();
-		self.findHeaders();
-		self.findFooters();
-		console.log(ko.toJSON(self.article))
+		self.findIncludedFiles();
+		if (self.article.css().length == 0){
+			self.alert.push(new alert('','Warning!','You did not include and CSS files'))
+		} else if (self.article.header().length == 0){
+			self.alert.push(new alert('','Warning!','You did not include and header files'))
+		} else if (self.article.footer().length == 0){
+			self.alert.push(new alert('','Warning!','You did not include and footer files'))
+		} else if (self.article.selectedDestination() == '' || typeof self.article.selectedDestination() == 'undefined'){
+			self.alert.push(new alert('','Warning!','Please select a save destination'))
+		} else {
+			var saveArticle = ko.toJS(self.article);
+			saveArticle.destination = directories[self.article.selectedDestination()];
+			console.log(saveArticle)
+			utils.issue('/auth/savedata',JSON.stringify(saveArticle),function(err,stat,text){
+				if (err || stat != 200){
+					self.alert.push(new alert('error','Error!',text))
+				} else {
+					self.alert.push(new alert('success','Success!',text))
+				}
+			})
+		}
 	}
 	self.uploadImage = function(){}
 
@@ -246,6 +395,15 @@
 	// useful bits
 
 	self.saveDestinations = ko.observableArray(['Articles','Drafts','Landing Pages','Error Pages']);
+
+	self.dragActive = ko.observable(true);
+
+	var directories = {
+		'Articles':'jsondocs',
+		'Drafts':'drafts',
+		'Landing Pages':'landingpages',
+		'Error Pages':'errorpages'
+	}
 
 	// =================================
 	// init function called on load
@@ -292,7 +450,6 @@
 				}
 			})
 		})
-		console.log(self.article)
 	}
 	init();
 }
@@ -321,4 +478,6 @@ var wato = { viewmodel: new AppViewModel()};
  	}
  })();
 
+ $(document).ready(function(){
 
+ });
