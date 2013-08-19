@@ -1,249 +1,269 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<title>CustomCMS New Article Markup</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Wato CMS New Article Markup</title>
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" type="text/css" href="/resources/CSS/bootstrap.min.css">
-<link rel="stylesheet" type="text/css" href="/resources/CSS/bootstrap-responsive.min.css">
-<script type="text/javascript" src="/resources/_JS/jquery-1.9.1.min.js"></script>
-<script type="text/javascript" src="/resources/_JS/underscore.js"></script>
-<script type="text/javascript" src="/resources/_JS/backbone.js"></script>
-<script type="text/javascript" src="knockout.js"></script>
-<link rel="stylesheet" type="text/css" href="./cms.css"></style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" type="text/css" href="/resources/CSS/bootstrap.min.css">
+  <link rel="stylesheet" type="text/css" href="/resources/CSS/bootstrap-responsive.min.css">
+  <script type="text/javascript" src="/resources/_JS/jquery-1.9.1.min.js"></script>
+  <script type="text/javascript" src="modernizr-custom-2.6.2.js"></script>
+  <script type="text/javascript" src="/resources/_JS/underscore.js"></script>
+  <script type="text/javascript" src="/resources/_JS/backbone.js"></script>
+
+  <script type="text/javascript" src="knockout.js"></script>
+  <script type="text/javascript" src="knockout.mapping.js"></script>
+  <link rel="stylesheet" type="text/css" href="./cms.css">
 </head>
 <body>
 
-<div class="navbar navbar-static-top navbar-inverse">
-<div class="navbar-inner">
-        <div class="container">
+  <div class="navbar navbar-static-top navbar-inverse">
+    <div class="navbar-inner">
+      <div class="container">
 
-          <a class="brand" href="index.html">Wato CMS</a>
-          <div class="nav-collapse collapse">
-            <ul class="nav">
-                <li class="dropdown">
-                    <a class="dropdown-toggle" role="button" data-toggle="dropdown" href="#">Actions</a>
-                    <ul class="dropdown-menu" id="" role="menu" aria-labelledby="dLabel">
-                        <li><a href="javascript:void(0);" role="menuitem" tabindex="-1" id="newfile" data-bind="click: newDocument">New</a></li>
-                        <li><a href="javascript:void(0);" role="menuitem" tabindex="-1" id="exportbutton" data-bind="click: exportFile">Export</a></li>
-                        <li><a href="javascript:void(0);" role="menuitem" tabindex="-1" id="previewbutton" data-bind="click: preview">Preview</a></li>
-                        <li><a href="javascript:void(0);" role="menuitem" tabindex="-1" id="savebutton" data-bind="click: save">Save</a></li>
-                        <li class="divider"></li>
-                        <li><a href="css_editor.html" role="menuitem">CSS Editor</a></li>
-                        <li><a href="head_editor.html" role="menuitem">Header/Footer Editor</a></li>
-                        <li><a href="nav_editor.html" role="menuitem">Nav Bar Editor</a></li>
-                        <li><a href="#" data-bind="click: showSettings" role="menuitem">Settings</a></li>
-                        <li><a href="#" data-bind="click: showRequests"  role="menuitem">Requests Log</a></li>
-                        <li><a href="#" data-bind="click: showDebug" role="menuitem">Debug Log</a></li>
-                    </ul>
-              </li>
-              <li class="dropdown">
-            <a class="dropdown-toggle" role="button" data-toggle="dropdown" href="#">Files</a>
-                    <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
-                        <li class="dropdown-submenu">
-                            <a tabindex="-1" href="#">Articles</a>
-                            <ul class="dropdown-menu" id="filelist" role="menu" aria-labelledby="dLabel" data-bind="foreach: livesArticles"></ul>
-                        </li>
-                        <li class="dropdown-submenu">
-                            <a tabindex="-1" href="#">Drafts</a>
-                            <ul class="dropdown-menu" id="draftlist" role="menu" aria-labelledby="dLabel" data-bind="foreach: drafts"></ul>
-                        </li>
-                        <li class="dropdown-submenu">
-                            <a tabindex="-1" href="#">Landing Pages</a>
-                            <ul class="dropdown-menu" id="landing_page_list" role="menu" aria-labelledby="dLabel" data-bind="foreach: landingPages"></ul>
-                        </li>
-                        <li class="dropdown-submenu">
-                            <a tabindex="-1" href="#">Errorpages</a>
-                            <ul class="dropdown-menu" id="error_page_list" role="menu" aria-labelledby="dLabel" data-bind="foreach: errorPages"></ul>
-                        </li>
-                    </ul>
-              </li>
-              <li class="dropdown">
-                    <a class="dropdown-toggle " role="button" data-toggle="dropdown" href="#">CSS</a>
-                    <ul id="csslist" class="dropdown-menu  keep_open" role="menu" aria-labelledby="dLabel" data-bind="foreach: cssFiles"></ul>
-              </li>
-              <li class="dropdown">
-                    <a class="dropdown-toggle" role="button" data-toggle="dropdown" href="#">Header</a>
-                    <ul id="headerlist" class="dropdown-menu  keep_open" role="menu" aria-labelledby="dLabel" data-bind="foreach: headerFiles"></ul>
-              </li>
-              <li class="dropdown">
-                    <a class="dropdown-toggle" role="button" data-toggle="dropdown" href="#">Footer</a>
-                    <ul id="footerlist" class="dropdown-menu  keep_open" role="menu" aria-labelledby="dLabel" data-bind="foreach: footerFiles"></ul>
-              </li>
-            </ul>
+        <a class="brand" href="index.html">Wato CMS</a>
+        <div class="nav-collapse collapse">
+          <ul class="nav">
+            <li class="dropdown">
+              <a class="dropdown-toggle" role="button" data-toggle="dropdown" href="#">Actions</a>
+              <ul class="dropdown-menu" id="" role="menu" aria-labelledby="dLabel">
+                <li><a href="javascript:void(0);" role="menuitem" tabindex="-1" id="newfile" data-bind="click: newDocument">New</a></li>
+                <li><a href="javascript:void(0);" role="menuitem" tabindex="-1" id="exportbutton" data-bind="click: exportFile">Export</a></li>
+                <li><a href="javascript:void(0);" role="menuitem" tabindex="-1" id="previewbutton" data-bind="click: preview">Preview</a></li>
+                <li><a href="javascript:void(0);" role="menuitem" tabindex="-1" id="savebutton" data-bind="click: save">Save</a></li>
+                <li class="divider"></li>
+                <li><a href="css_editor.html" role="menuitem">CSS Editor</a></li>
+                <li><a href="head_editor.html" role="menuitem">Header/Footer Editor</a></li>
+                <li><a href="nav_editor.html" role="menuitem">Nav Bar Editor</a></li>
+                <li><a href="#" data-bind="click: showSettings" role="menuitem">Settings</a></li>
+                <li><a href="#" data-bind="click: showRequests"  role="menuitem">Requests Log</a></li>
+                <li><a href="#" data-bind="click: showDebug" role="menuitem">Debug Log</a></li>
+              </ul>
+            </li>
+            <li class="dropdown">
+              <a class="dropdown-toggle" role="button" data-toggle="dropdown" href="#">Files</a>
+              <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
+                <li class="dropdown-submenu">
+                  <a tabindex="-1" href="#">Articles</a>
+                  <ul class="dropdown-menu" id="filelist" role="menu" aria-labelledby="dLabel" data-bind="foreach: liveArticles">
+                    <li><a data-bind="click:$root.getFile, text:title"></a></li>
+                  </ul>
+                </li>
+                <li class="dropdown-submenu">
+                  <a tabindex="-1" href="#">Drafts</a>
+                  <ul class="dropdown-menu" id="draftlist" role="menu" aria-labelledby="dLabel" data-bind="foreach: drafts">
+                    <li><a data-bind="click:$root.getFile, text:title"></a></li>
+                  </ul>
+                </li>
+                <li class="dropdown-submenu">
+                  <a tabindex="-1" href="#">Landing Pages</a>
+                  <ul class="dropdown-menu" id="landing_page_list" role="menu" aria-labelledby="dLabel" data-bind="foreach: landingPages">
+                    <li><a data-bind="click:$root.getFile, text:title"></a></li>
+                  </ul>
+                </li>
+                <li class="dropdown-submenu">
+                  <a tabindex="-1" href="#">Errorpages</a>
+                  <ul class="dropdown-menu" id="error_page_list" role="menu" aria-labelledby="dLabel" data-bind="foreach: errorPages">
+                    <li><a data-bind="click:$root.getFile, text:title"></a></li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+            <li class="dropdown">
+              <a class="dropdown-toggle " role="button" data-toggle="dropdown" href="#">CSS</a>
+              <ul id="csslist" class="dropdown-menu  keep_open" role="menu" aria-labelledby="dLabel" data-bind="foreach: cssFiles">
+                <li><a><label class="checkbox"><input type="checkbox" data-bind="checked:selected" /><span data-bind="text:title"></span></label></a></li>
+              </ul>
+            </li>
+            <li class="dropdown">
+              <a class="dropdown-toggle" role="button" data-toggle="dropdown" href="#">Header</a>
+              <ul id="headerlist" class="dropdown-menu  keep_open" role="menu" aria-labelledby="dLabel" data-bind="foreach: headerFiles">
+                <li><a><label class="checkbox"><input type="checkbox" data-bind="checked:selected" /><span data-bind="text:title"></span></label></a></li>
+              </ul>
+            </li>
+            <li class="dropdown">
+              <a class="dropdown-toggle" role="button" data-toggle="dropdown" href="#">Footer</a>
+              <ul id="footerlist" class="dropdown-menu  keep_open" role="menu" aria-labelledby="dLabel" data-bind="foreach: footerFiles">
+                <li><a><label class="checkbox"><input type="checkbox" data-bind="checked:selected" /><span data-bind="text:title"></span></label></a></li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+        <span class="pull-right navbar-text">&nbsp;&nbsp;Article Editor</span>
+
+        <!-- save button will also need a 'show' data binding -->
+        <button class="btn btn-primary" id="navbar_save_button" data-bind="click: save">Save</button>
+        <!-- -->
+
+      </div>
+    </div>
+
+  </div>
+
+
+  <div class="container" id="page_container">
+    <div id="draftwrapper" class="row">          
+      <div class="span4">
+        <div id="properties_div" class="bottom_space">
+          <div class="form-horizontal">
+            <h5 class="center">Properties</h5>
+            <div class="control-group">
+              <label class="control-label" for="">Title</label>
+              <div class="controls">
+                <input class="span2" type="text" name="titlefield" id="titlefield" data-bind="value: article.title">
+              </div>
+            </div>
+            <div class="control-group">
+              <label class="control-label" for="">Url</label>
+              <div class="controls">
+                <input class="span2" type="text" name="urlfield" id="urlfield" data-bind="value: article.url">
+              </div>
+            </div>
+            <div class="control-group">
+              <label class="control-label">Save Destination</label>
+              <div class="controls">
+                <select style="width:170px;" data-bind="options: saveDestinations, 
+                optionsCaption: 'Choose save destination', 
+                value: article.selectedDestination"></select>
+              </div>
+            </div>
+            <div class="control-group">
+              <label class="control-label" for="inputPassword">Tags</label>
+              <div class="controls" data-bind="foreach: article.tags">
+                <span class="label label-info label-trash" data-bind="text:name, click:$root.deleteTag"></span>
+              </div>
+            </div>
+            <div class="control-group">
+              <label class="control-label" for="inputPassword">New Tag</label>
+              <div class="controls">
+                <form data-bind="submit:addTag" class="short-form">
+                  <div class="input-append">
+                    <input type="text" style="width:130px" data-bind="value: newTag"/>
+                    <span class="add-on" data-bind="click:addTag">+</span>
+                  </div>
+                </form>
+              </div>
+            </div>
+            <div class="control-group">
+              <label class="control-label" for="inputPassword">Categories</label>
+              <div class="controls" data-bind="foreach: article.categories">
+                <span class="label label-info label-trash" data-bind="text:name, click:$root.deleteCat"></span>
+              </div>
+            </div>
+            <div class="control-group">
+              <label class="control-label" for="inputPassword">New Category</label>
+              <div class="controls">
+                <form data-bind="submit: addCat" class="short-form">
+                  <div class="input-append">
+                    <input type="text" style="width:130px" data-bind="value: newCat"/>
+                    <span class="add-on" data-bind="click:addCat">+</span>
+                  </div>
+                </form>
+              </div>
+            </div>                  
+            <div class="control-group">
+              <label class="control-label" for="inputPassword">Preview Text</label>
+              <div class="controls">
+                <textarea class="span2" data-bind="value: article.previewtext"></textarea>
+              </div>
+            </div>
+            <div class="control-group">
+              <label class="control-label" for="inputEmail">Publish Date</label>
+              <div class="controls">
+                <input class="span2" type="date" id="publishdate" data-bind="value: article.publishDate">
+              </div>
+            </div>
           </div>
-          <span class="pull-right navbar-text">&nbsp;&nbsp;Article Editor</span>
-
-          <!-- save button will also need a 'show' data binding -->
-          <button class="btn btn-primary" id="navbar_save_button" data-bind="click: save">Save</button>
-          <!-- -->
-
+        </div>
+        <div class="bottom_space" id="header_tags_div">
+          <h5 class="center">Header Tags:</h5>
+          <textarea class="center" id="tagsedit" cols="80" rows="4"></textarea>
+        </div>
+        <div class="" id="image_upload_div">
+          <h5 class="center">Upload New Image</h5>
+          <div class="center imagediv">
+            <input class="" type="file" id="files" name="files[]" />
+            <button type="button" data-bind="click: uploadimage" class="btn imageuploadbutton">Upload</button>
+            <p class="imgfeedback">Nothing Uploaded</p>
+            <output id="list"></output>
+          </div>
         </div>
       </div>
-
-</div>
-
-
-<div class="container" id="page_container">
-    <div id="draftwrapper" class="row">          
-        <div class="span4">
-            <div id="properties_div" class="bottom_space">
-                <div class="form-horizontal">
-                    <h5 class="center">Properties</h5>
-                  <div class="control-group">
-                    <label class="control-label" for="">Title</label>
-                    <div class="controls">
-                      <input class="span2" type="text" name="titlefield" id="titlefield" data-bind="value: title">
-                    </div>
-                  </div>
-                  <div class="control-group">
-                    <label class="control-label" for="">Slug</label>
-                    <div class="controls">
-                      <input class="span2" type="text" name="urlfield" id="urlfield" data-bind="value: slug">
-                    </div>
-                  </div>
-                  <div class="control-group">
-                    <label class="control-label">Save Destination</label>
-                    <div class="controls">
-                      <select data-bind="options: saveDestinations, 
-                      optionsCaption: 'Choose save destination', 
-                      value: selectedDestination"></select>
-                    </div>
-                  </div>
-                  <div class="control-group">
-                    <label class="control-label" for="inputPassword">Tags</label>
-                    <div class="controls" data-bind="foreach: tags">
-                      <span class="label label-info label-trash" data-bind="text:name, click:$root.deleteTag"></span>
-                    </div>
-                  </div>
-                  <div class="control-group">
-                  <label class="control-label" for="inputPassword">New Tag</label>
-                    <div class="controls">
-                      <form data-bind="submit:addTag" class="short-form">
-                        <div class="input-append">
-                        <input type="text" style="width:130px" data-bind="value: newTag"/>
-                        <span class="add-on" data-bind="click:addTag">+</span>
-                        </div>
-                      </form>
-                    </div>
-                  </div>
-                  <div class="control-group">
-                    <label class="control-label" for="inputPassword">Categories</label>
-                    <div class="controls" data-bind="foreach: categories">
-                      <span class="label label-info label-trash" data-bind="text:name, click:$root.deleteCat"></span>
-                    </div>
-                  </div>
-                  <div class="control-group">
-                  <label class="control-label" for="inputPassword">New Category</label>
-                    <div class="controls">
-                      <form data-bind="submit: addCat" class="short-form">
-                        <div class="input-append">
-                        <input type="text" style="width:130px" data-bind="value: newCat"/>
-                        <span class="add-on" data-bind="click:addCat">+</span>
-                        </div>
-                      </form>
-                    </div>
-                  </div>                  
-                  <div class="control-group">
-                    <label class="control-label" for="inputPassword">Preview Text</label>
-                    <div class="controls">
-                      <textarea class="span2" data-bind="value: previewText"></textarea>
-                    </div>
-                  </div>
-                  <div class="control-group">
-                    <label class="control-label" for="inputEmail">Publish Date</label>
-                    <div class="controls">
-                      <input class="span2" type="date" id="publishdate">
-                    </div>
-                  </div>
-                </div>
-            </div>
-            <div class="bottom_space" id="header_tags_div">
-                <h5 class="center">Header Tags:</h5>
-                <textarea class="center" id="tagsedit" cols="80" rows="4"></textarea>
-            </div>
-            <div class="" id="image_upload_div">
-                <h5 class="center">Upload New Image</h5>
-                <div class="center imagediv">
-                    <input class="" type="file" id="files" name="files[]" />
-                    <button type="button" data-bind="click: uploadimage" class="btn imageuploadbutton">Upload</button>
-                    <p class="imgfeedback">Nothing Uploaded</p>
-                    <output id="list"></output>
-                </div>
-            </div>
+      
+      <div id="draftcolumn" class="span8">
+        <div id="alertsdiv" data-bind="foreach: alert">
+          <div class="span7 alert" data-bind="css: {'alert-error': type == 'error','alert-success': type == 'success'}">
+            <button type="button" class="alert_close" data-bind="click: $root.dismiss">×</button>
+            <strong data-bind="text: title"></strong> <span data-bind="text: message"></span>
+          </div>
+        </div>
+        <div id="articledraft" data-bind="foreach: article.content">
+          <div data-bind="drag: $data" class="itemholder" draggable="true" style="-khtml-user-drag: element;">
+            <textarea 
+            class="span7 center item inline" 
+            data-bind="value: text, 
+            css: { 'code-edit-p': type() == 'pre', 
+            'code-edit-html': type() == 'HTML',
+            'text-edit-p': type() == 'p',
+            'text-edit-h2': type() == 'h2'}"></textarea>
+            <button type="button" class="btn btn-primary" data-bind="click: $root.pop">Pop</button>
+            <button type="button" class="btn btn-primary" data-bind="click: $root.clone">Clone</button>
+          </div>
+          <div data-bind="drop: $data, css: {'full_opacity': $root.dragElement() != null}" style="opacity: 0;" class="alert">DROP ME AHHHH</div>
         </div>
         
-        <div id="draftcolumn" class="span8">
-            <div id="alertsdiv"></div>
-            <div id="articledraft"></div>
-            <div id="controlsdiv">
-                <button class="newitem btn btn-info" for="p"  type="button"><i class="icon-white icon-pencil"></i> Paragraph</button>
-                <button class="newitem btn btn-info" for="pre" type="button"><i class="icon-white icon-list-alt"></i> Code Section</button>
-                <button class="newitem btn btn-info" for="h2" type="button"><i class="icon-white icon-bold"></i> Heading</button>
-                <button class="newitem btn btn-info" id="htmlnewitem" for="HTML" type="button"><i class="icon-white icon-barcode"></i> HTML</button>
-                <button class="newitem btn btn-info" id="newimageitem" for="Image" type="button"><i class="icon-white icon-picture"></i> Image</button>
-                <div id="savedate"></div>
-            </div>
+        
+        <div id="controlsdiv">
+          <button class="newitem btn btn-info" type="button" data-bind="click:newParagraph"><i class="icon-white icon-pencil"></i> Paragraph</button>
+          <button class="newitem btn btn-info" type="button" data-bind="click:newCode"><i class="icon-white icon-list-alt"></i> Code Section</button>
+          <button class="newitem btn btn-info" type="button" data-bind="click:newHeading"><i class="icon-white icon-bold"></i> Heading</button>
+          <button class="newitem btn btn-info" type="button" data-bind="click:newHtml"><i class="icon-white icon-barcode"></i> HTML</button>
+          <button class="newitem btn btn-info" type="button" data-bind="click:newPicture"><i class="icon-white icon-picture"></i> Image</button>
+          <div id="savedate"></div>
         </div>
+      </div>
     </div>
     
-</div>
+  </div>
 
-<div id="save_modal" class="modal hide fade in">
-  <div class="modal-header">
-    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-    <h4>Where's this goin...</h4>
-  </div>
-  <div class="modal-body">
-    <p>Select a save destination</p>
-    <select id="save_modal_selector">
-      <option value="jsondocs">Articles <small>(displays live)</small></option>
-      <option value="drafts">Drafts</option>
-      <option value="landingpages">Landing Pages</option>
-      <option value="errorpages">Error Pages</option>
-    </select>
-  </div>
-  <div class="modal-footer">
-    <a href="#" id="save_modal_cancel" class="btn">Cancel</a>
-    <a href="#" id="save_modal_save_button" class="btn btn-primary">Save</a>
-  </div>
-</div>
 
-{{@./auth/bootstrap/debug_modal.html}}
-{{@./auth/bootstrap/settings_modal.html}}
-<script type="text/javascript" src="utils.js"></script>
-<script type="text/javascript" src="/resources/_JS/bootstrap.min.js"></script>
-<script type="text/javascript" src="/resources/_JS/bootstrap-dropdown.js"></script>
-<script type="text/javascript" src="/resources/_JS/bootstrap-button.js"></script>
-<script type="text/javascript" src="/resources/_JS/bootstrap-modal.js"></script>
-<!--<script type="text/javascript" src="cms_backbone.js"></script>-->
-<script type="text/javascript" src="article.js"></script>
-<script type="text/javascript">
-$('.dropdown-menu').click(function(event){
-    if($(this).hasClass('keep_open')){
-     event.stopPropagation();
+  {{@./auth/bootstrap/debug_modal.html}}
+  {{@./auth/bootstrap/settings_modal.html}}
+  <script type="text/javascript" src="utils.js"></script>
+  <script type="text/javascript" src="/resources/_JS/bootstrap.min.js"></script>
+  <script type="text/javascript" src="/resources/_JS/bootstrap-dropdown.js"></script>
+  <script type="text/javascript" src="/resources/_JS/bootstrap-button.js"></script>
+  <script type="text/javascript" src="/resources/_JS/bootstrap-modal.js"></script>
+  <!--<script type="text/javascript" src="cms_backbone.js"></script>-->
+  <script type="text/javascript" src="article.js"></script>
+  <script type="text/javascript">
+    $('.dropdown-menu').click(function(event){
+      if($(this).hasClass('keep_open')){
+       event.stopPropagation();
+     }
+   });
+  </script>
+  <style type="text/css">
+    .label-trash {
+      cursor:pointer;
+      background-position: -456px 2px;
+      padding-left: 16px;
+      display: inline-block;
+      height: 14px;
+      margin-top: 1px;
+      line-height: 14px;
+      vertical-align: text-top;
+      background-image: url("../../resources/img/glyphicons-halflings.png");
+      background-repeat: no-repeat;
     }
- });
-</script>
-<style type="text/css">
-.label-trash {
-  cursor:pointer;
-  background-position: -456px 2px;
-  padding-left: 16px;
-  display: inline-block;
-  height: 14px;
-  margin-top: 1px;
-  line-height: 14px;
-  vertical-align: text-top;
-  background-image: url("../../resources/img/glyphicons-halflings.png");
-  background-repeat: no-repeat;
-}
-.short-form {
-  margin: 0;
-}
-</style>
+    .short-form {
+      margin: 0;
+    }
+  </style>
 
 </body>
 </html>
+
+<!-- -->
 
